@@ -100,6 +100,13 @@ Programmable transactions and SDKs call the package IDs directly, for example
 or
 `0x85fdb7e3d28162b99e0df758069a3d23cff874c400b2160fc0d4618aefd3ec5c::blast_fun_linear_vesting::new_irrevocable`.
 
+## TypeScript SDK
+
+[`sdk/`](sdk/) is `@interest-protocol/blast-util-sdk`: transaction builders,
+state reads, event decoders, and replay reducers for both packages, with their
+mainnet IDs built in. Its tests check every builder and decoder against the
+frozen ABI of the deployed code. See the [SDK README](sdk/README.md).
+
 ## Development
 
 Each package has its own manifest and lockfile and builds with the pinned Sui
