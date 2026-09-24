@@ -169,6 +169,127 @@ fun named_taker_offer_accepts_its_taker() {
 }
 
 #[test]
+fun taken_events_replay_to_the_refund_and_the_maker_receipts() {
+    let mut fixture = start_offer(option::none(), true);
+    let mut sold = 0;
+    let mut paid = 0;
+    let mut received = 0;
+
+    fixture.next_tx!(TAKER, |f| {
+        f.take(3, 1);
+
+        let taken = collect_one<OfferTaken>();
+        let (_, _, amount, cost) = taken.offer_taken_fields();
+        sold = sold + amount;
+        paid = paid + cost;
+    });
+
+    fixture.next_tx!(MAKER, |f| {
+        received = received + f.take_maker_payout();
+    });
+
+    fixture.next_tx!(OTHER, |f| {
+        f.take(500, 200);
+
+        let taken = collect_one<OfferTaken>();
+        let (_, _, amount, cost) = taken.offer_taken_fields();
+        sold = sold + amount;
+        paid = paid + cost;
+    });
+
+    fixture.next_tx!(MAKER, |f| {
+        received = received + f.take_maker_payout();
+    });
+
+    fixture.next_tx!(TAKER, |f| {
+        f.take(250, 100);
+
+        let taken = collect_one<OfferTaken>();
+        let (_, _, amount, cost) = taken.offer_taken_fields();
+        sold = sold + amount;
+        paid = paid + cost;
+    });
+
+    fixture.next_tx!(MAKER, |f| {
+        received = received + f.take_maker_payout();
+        let refund = f.cancel();
+
+        let canceled = collect_one<OfferCanceled>();
+        let (_, emitted_refund) = canceled.offer_canceled_fields();
+        let (_, _, _, _, _, _, offered_amount, _) = f.created.offer_created_fields();
+        assert_eq!(emitted_refund, refund);
+        assert_eq!(refund, offered_amount - sold);
+    });
+
+    assert_eq!(sold, 753);
+    assert_eq!(paid, 1 + 167 + 84);
+    assert_eq!(received, paid);
+
+    fixture.end();
+}
+
+#[test]
+fun named_taker_may_fill_a_partial_offer_in_steps() {
+    let mut fixture = start_offer(option::some(TAKER), true);
+
+    fixture.next_tx!(TAKER, |f| {
+        f.assert_created(option::some(TAKER), true);
+
+        let (bought, _) = f.take(400, 134);
+        assert_eq!(bought, 400);
+    });
+
+    fixture.next_tx!(MAKER, |f| {
+        assert_eq!(f.take_maker_payout(), 134);
+    });
+
+    fixture.next_tx!(TAKER, |f| {
+        // 600 * 333 / 1_000 = 199.8 rounds up to 200.
+        let (bought, change) = f.take(600, 200);
+        assert_eq!(bought, 600);
+        assert_eq!(change, 0);
+    });
+
+    fixture.next_tx!(MAKER, |f| {
+        assert_eq!(f.take_maker_payout(), 200);
+        assert_eq!(f.cancel(), 0);
+    });
+
+    fixture.end();
+}
+
+#[test]
+fun costs_round_up_only_on_a_remainder() {
+    let mut fixture = start_unit();
+
+    // Rate 1/4: exact fills pay the exact cost; a remainder adds one unit.
+    fixture.create(1_000, 250, option::none(), true);
+    let (_, change) = fixture.take(4, 100);
+    assert_eq!(change, 99);
+    let (_, change) = fixture.take(5, 100);
+    assert_eq!(change, 98);
+    assert_eq!(fixture.cancel(), 991);
+
+    // Rate 1/1_000: no fill is free, so the maker can receive one unit more per fill.
+    fixture.create(1_000, 1, option::none(), true);
+    let (_, change) = fixture.take(1, 100);
+    assert_eq!(change, 99);
+    let (_, change) = fixture.take(999, 100);
+    assert_eq!(change, 99);
+    assert_eq!(fixture.cancel(), 0);
+
+    // Rate 10/3: 1 unit costs 3.33 → 4, 2 units cost 6.67 → 7.
+    fixture.create(3, 10, option::none(), true);
+    let (_, change) = fixture.take(1, 100);
+    assert_eq!(change, 96);
+    let (_, change) = fixture.take(2, 100);
+    assert_eq!(change, 93);
+    assert_eq!(fixture.cancel(), 0);
+
+    fixture.end();
+}
+
+#[test]
 fun offer_composes_within_one_transaction_before_sharing() {
     let mut fixture = start_unit();
     fixture.create(OFFERED_AMOUNT, WANTED_AMOUNT, option::none(), true);
@@ -177,6 +298,26 @@ fun offer_composes_within_one_transaction_before_sharing() {
     assert_eq!(bought, 250);
     assert_eq!(change, 16);
     assert_eq!(fixture.cancel(), 750);
+
+    let created = collect_one<OfferCreated>();
+    let (offer_id, _, _, maker, taker, partial_fills, offered_amount, wanted_amount) =
+        created.offer_created_fields();
+    let taken = collect_one<OfferTaken>();
+    let (taken_id, taker_address, amount, paid) = taken.offer_taken_fields();
+    let canceled = collect_one<OfferCanceled>();
+    let (canceled_id, refund) = canceled.offer_canceled_fields();
+
+    assert_eq!(maker, MAKER);
+    assert!(taker.is_none());
+    assert!(partial_fills);
+    assert_eq!(offered_amount, OFFERED_AMOUNT);
+    assert_eq!(wanted_amount, WANTED_AMOUNT);
+    assert_eq!(taken_id, offer_id);
+    assert_eq!(taker_address, MAKER);
+    assert_eq!(amount, 250);
+    assert_eq!(paid, 84);
+    assert_eq!(canceled_id, offer_id);
+    assert_eq!(refund, 750);
 
     fixture.end();
 }
@@ -275,6 +416,25 @@ fun take_rejects_amount_above_the_balance_before_the_full_take_rule() {
 
     fixture.next_tx!(TAKER, |f| {
         f.take(OFFERED_AMOUNT + 1, WANTED_AMOUNT + 1);
+    });
+
+    fixture.end();
+}
+
+#[test]
+#[expected_failure(
+    abort_code = blast_fun_otc::blast_fun_otc::EAmountExceedsBalance,
+    location = blast_fun_otc::blast_fun_otc,
+)]
+fun taken_offer_rejects_another_take() {
+    let mut fixture = start_offer(option::none(), false);
+
+    fixture.next_tx!(TAKER, |f| {
+        f.take(OFFERED_AMOUNT, WANTED_AMOUNT);
+    });
+
+    fixture.next_tx!(OTHER, |f| {
+        f.take(1, WANTED_AMOUNT);
     });
 
     fixture.end();
