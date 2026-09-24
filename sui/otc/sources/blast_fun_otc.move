@@ -31,6 +31,9 @@ const EPartialFillsDisabled: vector<u8> = b"Offer must be taken in full.";
 #[error(code = 7)]
 const ENotMaker: vector<u8> = b"Only the maker may cancel this offer.";
 
+#[error(code = 8)]
+const ESameCoin: vector<u8> = b"Offered and wanted coins must be different types.";
+
 // === Public Types ===
 
 /// Key-only shared escrow for one offer whose rate and counterparty never change.
@@ -72,8 +75,9 @@ public struct OfferCanceled has copy, drop {
 
 // === Public Functions ===
 
-/// Escrows `offered` for `wanted_amount` of `Wanted`, payable to the sender as maker. A `taker`
-/// restricts the offer to that one address; `partial_fills` lets takers buy part of the escrow.
+/// Escrows `offered` for `wanted_amount` of a different coin type `Wanted`, payable to the sender
+/// as maker. A `taker` restricts the offer to that one address; `partial_fills` lets takers buy
+/// part of the escrow.
 public fun new<Offered, Wanted>(
     offered: Coin<Offered>,
     wanted_amount: u64,
@@ -87,6 +91,9 @@ public fun new<Offered, Wanted>(
     let offered_amount = offered.value();
     assert!(offered_amount > 0, EZeroOffered);
     assert!(wanted_amount > 0, EZeroWanted);
+    let offered_type = type_name::with_original_ids<Offered>();
+    let wanted_type = type_name::with_original_ids<Wanted>();
+    assert!(offered_type != wanted_type, ESameCoin);
 
     let offer = Offer {
         id: object::new(ctx),
@@ -100,8 +107,8 @@ public fun new<Offered, Wanted>(
 
     event::emit(OfferCreated {
         offer_id: offer.id.to_inner(),
-        offered_type: type_name::with_original_ids<Offered>(),
-        wanted_type: type_name::with_original_ids<Wanted>(),
+        offered_type,
+        wanted_type,
         maker: offer.maker,
         taker,
         partial_fills,

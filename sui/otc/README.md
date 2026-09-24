@@ -2,7 +2,8 @@
 
 Fixed-price coin swaps between two parties. A maker escrows a `Coin<Offered>`
 in a shared `Offer<Offered, Wanted>` and names the `Wanted` amount that buys all
-of it. When creating the offer, the maker chooses:
+of it. `Offered` and `Wanted` must be different coin types, compared by their
+original package IDs. When creating the offer, the maker chooses:
 
 - **Counterparty:** anyone, or one named taker address.
 - **Fills:** all-or-nothing, or partial fills at the same fixed rate.

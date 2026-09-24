@@ -378,6 +378,30 @@ fun constructor_rejects_zero_wanted() {
 
 #[test]
 #[expected_failure(
+    abort_code = blast_fun_otc::blast_fun_otc::EZeroWanted,
+    location = blast_fun_otc::blast_fun_otc,
+)]
+fun constructor_rejects_zero_wanted_before_the_same_coin_type() {
+    let mut fixture = start_unit();
+    fixture.create_with_same_coin(1, 0);
+
+    fixture.end();
+}
+
+#[test]
+#[expected_failure(
+    abort_code = blast_fun_otc::blast_fun_otc::ESameCoin,
+    location = blast_fun_otc::blast_fun_otc,
+)]
+fun constructor_rejects_the_same_coin_type() {
+    let mut fixture = start_unit();
+    fixture.create_with_same_coin(OFFERED_AMOUNT, WANTED_AMOUNT);
+
+    fixture.end();
+}
+
+#[test]
+#[expected_failure(
     abort_code = blast_fun_otc::blast_fun_otc::ENotTaker,
     location = blast_fun_otc::blast_fun_otc,
 )]
@@ -520,6 +544,19 @@ fun unit_create(
     self.offer.fill(offer);
 }
 
+fun unit_create_with_same_coin(self: &mut UnitFixture, offered_amount: u64, wanted_amount: u64) {
+    let offered = coin::mint_for_testing<OFFERED>(offered_amount, self.scenario.ctx());
+    let offer = otc::new<OFFERED, OFFERED>(
+        offered,
+        wanted_amount,
+        option::none(),
+        false,
+        self.scenario.ctx(),
+    );
+
+    destroy(offer);
+}
+
 fun unit_take(self: &mut UnitFixture, amount: u64, budget: u64): (u64, u64) {
     let mut payment = coin::mint_for_testing<WANTED>(budget, self.scenario.ctx());
     let bought = self.offer.borrow_mut().take(amount, &mut payment, self.scenario.ctx());
@@ -646,6 +683,8 @@ use fun offer_fixture_take_maker_payout as OfferFixture.take_maker_payout;
 use fun unit_cancel as UnitFixture.cancel;
 
 use fun unit_create as UnitFixture.create;
+
+use fun unit_create_with_same_coin as UnitFixture.create_with_same_coin;
 
 use fun unit_end as UnitFixture.end;
 
