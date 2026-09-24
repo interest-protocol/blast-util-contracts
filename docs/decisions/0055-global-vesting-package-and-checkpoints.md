@@ -6,6 +6,10 @@
 - Amended 2026-09-24: the modules are `blast_fun_linear_vesting` and
   `blast_fun_checkpoint_vesting` (Blast V2 contracts ADR 0085). The close and
   event changes recorded in ADR 0052 apply to both modules.
+- Gate satisfied 2026-09-24: the 256-checkpoint mainnet evidence is in
+  [`deployments/sui/mainnet/2026-09-24-otc-and-vesting.json`](../../deployments/sui/mainnet/2026-09-24-otc-and-vesting.json),
+  and the package is immutable at
+  `0x85fdb7e3d28162b99e0df758069a3d23cff874c400b2160fc0d4618aefd3ec5c`.
 
 ## Context
 

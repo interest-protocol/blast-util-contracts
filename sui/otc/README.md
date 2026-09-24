@@ -37,10 +37,12 @@ and `cancel` until it lifts.
 The package has no fees or expiry and depends only on the Sui framework. Use
 `scripts/check_coverage.sh` for the package coverage gate.
 
-## Publication
+## Mainnet
 
-Publish and call `sui::package::make_immutable` on the returned `UpgradeCap`
-in the same transaction, then record the digest. Until the cap is consumed,
-its holder could upgrade the module and reach every offer's escrow. Once it is
-consumed, no one can change the code, and only each offer's maker can cancel
-it.
+Published at
+`0x40e0c95f73af329e7a6a8eafee9d152a1f3090736d35052842288232f7eb5968` and made
+immutable in the same transaction,
+[`B2K4fgF5ABbYiTytg6Q8iTGxyfvTZuvL9WXWK3DBehoE`](https://suiscan.xyz/mainnet/tx/B2K4fgF5ABbYiTytg6Q8iTGxyfvTZuvL9WXWK3DBehoE):
+`Publish`, then `0x2::package::make_immutable(Result(0))`. No `UpgradeCap`
+exists, so no one can change the code, and only each offer's maker can cancel
+it. See the [deployment record](../../deployments/sui/mainnet/2026-09-24-otc-and-vesting.json).

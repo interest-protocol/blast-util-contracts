@@ -21,10 +21,14 @@ beneficiary is denied, claims fail, and so does cancellation whenever vested
 value is owed. While the refund recipient is denied, cancellation fails until
 nothing is left to refund.
 
-## Mainnet gate
+## Mainnet
 
-Before making vesting immutable on mainnet, create irrevocable and cancellable
-schedules with the full 256-checkpoint vector. Decode the complete vectors,
-exercise first, middle, and final claims plus cancellation and closure, and
-record transaction digests, gas, serialized object size, and the absence of
-checkpoint dynamic fields.
+Published at
+`0x85fdb7e3d28162b99e0df758069a3d23cff874c400b2160fc0d4618aefd3ec5c` and made
+immutable after the mainnet gate: irrevocable and cancellable schedules with
+the full 256-checkpoint vector were created, decoded, claimed at their first,
+middle, and final checkpoints, canceled, and closed.
+[`3wvDSfNADFGP9SvxWPuiBGvdYMvzf7BabUBpGWKD1FWu`](https://suiscan.xyz/mainnet/tx/3wvDSfNADFGP9SvxWPuiBGvdYMvzf7BabUBpGWKD1FWu)
+then consumed the package `UpgradeCap` with `0x2::package::make_immutable`.
+The [deployment record](../../deployments/sui/mainnet/2026-09-24-otc-and-vesting.json)
+holds every digest, gas cost, object size, and reconciliation.
