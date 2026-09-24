@@ -18,30 +18,6 @@ public struct Offer<phantom Offered, phantom Wanted> has key {
     wanted_amount: u64,
 }
 
-/// Emitted after a maker escrows a new offer.
-public struct OfferCreated has copy, drop {
-    offer_id: ID,
-    offered_type: TypeName,
-    wanted_type: TypeName,
-    taker: Option<address>,
-    partial_fills: bool,
-    offered_amount: u64,
-    wanted_amount: u64,
-}
-
-/// Emitted after the sender buys `amount` of the escrow and pays the maker `paid`.
-public struct OfferTaken has copy, drop {
-    offer_id: ID,
-    amount: u64,
-    paid: u64,
-}
-
-/// Emitted after the maker deletes an offer and recovers its remaining escrow.
-public struct OfferCanceled has copy, drop {
-    offer_id: ID,
-    refund: u64,
-}
-
 // === Public Functions ===
 
 /// Escrows `offered` for `wanted_amount` of a different coin type `Wanted`, payable to the sender
@@ -163,6 +139,32 @@ public fun offer_taken_fields(self: &OfferTaken): (ID, u64, u64) {
 #[test_only]
 public fun offer_canceled_fields(self: &OfferCanceled): (ID, u64) {
     (self.offer_id, self.refund)
+}
+
+// === Events ===
+
+/// Emitted after a maker escrows a new offer.
+public struct OfferCreated has copy, drop {
+    offer_id: ID,
+    offered_type: TypeName,
+    wanted_type: TypeName,
+    taker: Option<address>,
+    partial_fills: bool,
+    offered_amount: u64,
+    wanted_amount: u64,
+}
+
+/// Emitted after the sender buys `amount` of the escrow and pays the maker `paid`.
+public struct OfferTaken has copy, drop {
+    offer_id: ID,
+    amount: u64,
+    paid: u64,
+}
+
+/// Emitted after the maker deletes an offer and recovers its remaining escrow.
+public struct OfferCanceled has copy, drop {
+    offer_id: ID,
+    refund: u64,
 }
 
 // === Errors ===

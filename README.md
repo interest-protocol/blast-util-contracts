@@ -54,16 +54,20 @@ sui client tx-block 3wvDSfNADFGP9SvxWPuiBGvdYMvzf7BabUBpGWKD1FWu
 sui client object 0xa4140133b2a6972824b83899398d63ddcc03ca0c4eea40f0c0e82cf4e4ab28e3
 ```
 
+The on-chain bytecode matches this repository's source at the publish commit.
+The `#[error]` abort codes encode source line numbers, and later style cleanups
+moved lines without changing behaviour, so verify at `e1a7c62`:
+
 ```bash
-# The on-chain bytecode matches this repository's source
+git checkout e1a7c62
+```
+
+```bash
 sui client verify-source sui/otc
 ```
 
-Vesting's `#[error]` abort codes encode source line numbers, so verify it at
-the publish commit. Later cleanups moved lines without changing behaviour.
-
 ```bash
-git checkout e1a7c62 && sui client verify-source sui/vesting
+sui client verify-source sui/vesting
 ```
 
 The [deployment record](deployments/sui/mainnet/2026-09-24-otc-and-vesting.json)

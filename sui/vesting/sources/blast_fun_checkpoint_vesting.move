@@ -37,43 +37,6 @@ public struct CancelCap<phantom CoinType> has key, store {
     vesting_id: ID,
 }
 
-/// Emitted after one fully funded schedule and any cancellation cap are created.
-public struct VestingCreated has copy, drop {
-    vesting_id: ID,
-    coin_type: TypeName,
-    beneficiary: address,
-    refund_recipient: Option<address>,
-    cancel_cap_id: Option<ID>,
-    total_amount: u64,
-    checkpoint_count: u64,
-}
-
-/// Emitted after newly vested value is transferred to the fixed beneficiary.
-public struct VestingClaimed has copy, drop {
-    vesting_id: ID,
-    coin_type: TypeName,
-    beneficiary: address,
-    amount: u64,
-    released_total: u64,
-}
-
-/// Emitted after fair cancellation settles vested and unvested custody.
-public struct VestingCanceled has copy, drop {
-    vesting_id: ID,
-    coin_type: TypeName,
-    beneficiary: address,
-    refund_recipient: address,
-    beneficiary_amount: u64,
-    refund_amount: u64,
-    released_total: u64,
-}
-
-/// Emitted after a drained irrevocable schedule is deleted.
-public struct VestingClosed has copy, drop {
-    vesting_id: ID,
-    coin_type: TypeName,
-}
-
 // === Public Functions ===
 
 /// Creates an empty schedule that must be populated and consumed in the same PTB.
@@ -358,6 +321,45 @@ public fun vesting_canceled_fields(
 #[test_only]
 public fun vesting_closed_fields(self: &VestingClosed): (ID, TypeName) {
     (self.vesting_id, self.coin_type)
+}
+
+// === Events ===
+
+/// Emitted after one fully funded schedule and any cancellation cap are created.
+public struct VestingCreated has copy, drop {
+    vesting_id: ID,
+    coin_type: TypeName,
+    beneficiary: address,
+    refund_recipient: Option<address>,
+    cancel_cap_id: Option<ID>,
+    total_amount: u64,
+    checkpoint_count: u64,
+}
+
+/// Emitted after newly vested value is transferred to the fixed beneficiary.
+public struct VestingClaimed has copy, drop {
+    vesting_id: ID,
+    coin_type: TypeName,
+    beneficiary: address,
+    amount: u64,
+    released_total: u64,
+}
+
+/// Emitted after fair cancellation settles vested and unvested custody.
+public struct VestingCanceled has copy, drop {
+    vesting_id: ID,
+    coin_type: TypeName,
+    beneficiary: address,
+    refund_recipient: address,
+    beneficiary_amount: u64,
+    refund_amount: u64,
+    released_total: u64,
+}
+
+/// Emitted after a drained irrevocable schedule is deleted.
+public struct VestingClosed has copy, drop {
+    vesting_id: ID,
+    coin_type: TypeName,
 }
 
 // === Errors ===
