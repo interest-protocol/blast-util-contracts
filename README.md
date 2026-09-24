@@ -24,4 +24,4 @@ Other packages depend on a pinned revision:
 blast_fun_vesting = { git = "https://github.com/interest-protocol/blast-util-contracts.git", subdir = "sui/vesting", rev = "<commit>" }
 ```
 
-Licensed under the [Business Source License 1.1](LICENSE).
+Licensed under the [MIT License](LICENSE).
