@@ -13,6 +13,14 @@ arithmetic boundaries. Use `scripts/check_coverage.sh` for the package coverage
 gate. Source and tests own the current API, errors, events, and schedule
 behavior.
 
+Events carry no sender field; indexers read the sender from the transaction
+and join later events to `VestingCreated` by `vesting_id`.
+
+A coin whose issuer keeps a deny list can stall a schedule. While the
+beneficiary is denied, claims fail, and so does cancellation whenever vested
+value is owed. While the refund recipient is denied, cancellation fails until
+nothing is left to refund.
+
 ## Mainnet gate
 
 Before making vesting immutable on mainnet, create irrevocable and cancellable

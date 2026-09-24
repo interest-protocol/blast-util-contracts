@@ -2,6 +2,11 @@
 
 - Status: accepted
 - Date: 2026-08-29
+- Amended 2026-09-24: the module is `blast_fun_linear_vesting` (explorer
+  naming, Blast V2 contracts ADR 0085). `close_irrevocable` requires only a
+  drained schedule: only the final boundary releases the last unit, so a
+  drained schedule has always ended. Events no longer carry the transaction
+  sender (`funder`, `caller`) or values derivable from earlier events.
 
 ## Context
 

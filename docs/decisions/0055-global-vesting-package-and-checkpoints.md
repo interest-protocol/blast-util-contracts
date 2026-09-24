@@ -3,6 +3,9 @@
 - Status: accepted
 - Date: 2026-08-29
 - Amends: [0052](0052-stepped-linear-vesting.md)
+- Amended 2026-09-24: the modules are `blast_fun_linear_vesting` and
+  `blast_fun_checkpoint_vesting` (Blast V2 contracts ADR 0085). The close and
+  event changes recorded in ADR 0052 apply to both modules.
 
 ## Context
 

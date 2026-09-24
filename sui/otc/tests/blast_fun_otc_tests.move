@@ -23,10 +23,10 @@ public struct OFFERED() has drop;
 
 public struct WANTED() has drop;
 
-/// Single-transaction construction and focused failure-path fixture.
+/// Single-transaction fixture holding any number of unshared offers.
 public struct UnitFixture {
     scenario: Scenario,
-    offer: Option<Offer<OFFERED, WANTED>>,
+    offers: vector<Offer<OFFERED, WANTED>>,
 }
 
 /// Shared offer lifecycle with maker payout inspection.
@@ -51,9 +51,8 @@ fun full_take_pays_the_maker_exactly_the_wanted_amount_and_replays_events() {
         assert_eq!(change, 67);
 
         let taken = collect_one<OfferTaken>();
-        let (offer_id, taker, amount, paid) = taken.offer_taken_fields();
+        let (offer_id, amount, paid) = taken.offer_taken_fields();
         assert_eq!(offer_id, f.offer_id());
-        assert_eq!(taker, TAKER);
         assert_eq!(amount, OFFERED_AMOUNT);
         assert_eq!(paid, WANTED_AMOUNT);
     });
@@ -84,8 +83,7 @@ fun partial_fills_round_every_cost_up_for_the_maker() {
         assert_eq!(change, 0);
 
         let taken = collect_one<OfferTaken>();
-        let (_, taker, amount, paid) = taken.offer_taken_fields();
-        assert_eq!(taker, TAKER);
+        let (_, amount, paid) = taken.offer_taken_fields();
         assert_eq!(amount, 3);
         assert_eq!(paid, 1);
     });
@@ -101,8 +99,7 @@ fun partial_fills_round_every_cost_up_for_the_maker() {
         assert_eq!(change, 33);
 
         let taken = collect_one<OfferTaken>();
-        let (_, taker, amount, paid) = taken.offer_taken_fields();
-        assert_eq!(taker, OTHER);
+        let (_, amount, paid) = taken.offer_taken_fields();
         assert_eq!(amount, 500);
         assert_eq!(paid, 167);
     });
@@ -150,6 +147,21 @@ fun maker_cancel_returns_the_unfilled_remainder() {
 }
 
 #[test]
+fun maker_cancel_of_an_untouched_offer_returns_the_full_escrow() {
+    let mut fixture = start_offer(option::some(TAKER), false);
+
+    fixture.next_tx!(MAKER, |f| {
+        assert_eq!(f.cancel(), OFFERED_AMOUNT);
+
+        let canceled = collect_one<OfferCanceled>();
+        let (_, refund) = canceled.offer_canceled_fields();
+        assert_eq!(refund, OFFERED_AMOUNT);
+    });
+
+    fixture.end();
+}
+
+#[test]
 fun named_taker_offer_accepts_its_taker() {
     let mut fixture = start_offer(option::some(TAKER), false);
 
@@ -164,66 +176,6 @@ fun named_taker_offer_accepts_its_taker() {
     fixture.next_tx!(MAKER, |f| {
         assert_eq!(f.take_maker_payout(), WANTED_AMOUNT);
     });
-
-    fixture.end();
-}
-
-#[test]
-fun taken_events_replay_to_the_refund_and_the_maker_receipts() {
-    let mut fixture = start_offer(option::none(), true);
-    let mut sold = 0;
-    let mut paid = 0;
-    let mut received = 0;
-
-    fixture.next_tx!(TAKER, |f| {
-        f.take(3, 1);
-
-        let taken = collect_one<OfferTaken>();
-        let (_, _, amount, cost) = taken.offer_taken_fields();
-        sold = sold + amount;
-        paid = paid + cost;
-    });
-
-    fixture.next_tx!(MAKER, |f| {
-        received = received + f.take_maker_payout();
-    });
-
-    fixture.next_tx!(OTHER, |f| {
-        f.take(500, 200);
-
-        let taken = collect_one<OfferTaken>();
-        let (_, _, amount, cost) = taken.offer_taken_fields();
-        sold = sold + amount;
-        paid = paid + cost;
-    });
-
-    fixture.next_tx!(MAKER, |f| {
-        received = received + f.take_maker_payout();
-    });
-
-    fixture.next_tx!(TAKER, |f| {
-        f.take(250, 100);
-
-        let taken = collect_one<OfferTaken>();
-        let (_, _, amount, cost) = taken.offer_taken_fields();
-        sold = sold + amount;
-        paid = paid + cost;
-    });
-
-    fixture.next_tx!(MAKER, |f| {
-        received = received + f.take_maker_payout();
-        let refund = f.cancel();
-
-        let canceled = collect_one<OfferCanceled>();
-        let (_, emitted_refund) = canceled.offer_canceled_fields();
-        let (_, _, _, _, _, _, offered_amount, _) = f.created.offer_created_fields();
-        assert_eq!(emitted_refund, refund);
-        assert_eq!(refund, offered_amount - sold);
-    });
-
-    assert_eq!(sold, 753);
-    assert_eq!(paid, 1 + 167 + 84);
-    assert_eq!(received, paid);
 
     fixture.end();
 }
@@ -259,32 +211,92 @@ fun named_taker_may_fill_a_partial_offer_in_steps() {
 }
 
 #[test]
+fun taken_events_replay_to_the_refund_and_the_maker_receipts() {
+    let mut fixture = start_offer(option::none(), true);
+    let mut sold = 0;
+    let mut paid = 0;
+    let mut received = 0;
+
+    fixture.next_tx!(TAKER, |f| {
+        f.take(3, 1);
+
+        let taken = collect_one<OfferTaken>();
+        let (_, amount, cost) = taken.offer_taken_fields();
+        sold = sold + amount;
+        paid = paid + cost;
+    });
+
+    fixture.next_tx!(MAKER, |f| {
+        received = received + f.take_maker_payout();
+    });
+
+    fixture.next_tx!(OTHER, |f| {
+        f.take(500, 200);
+
+        let taken = collect_one<OfferTaken>();
+        let (_, amount, cost) = taken.offer_taken_fields();
+        sold = sold + amount;
+        paid = paid + cost;
+    });
+
+    fixture.next_tx!(MAKER, |f| {
+        received = received + f.take_maker_payout();
+    });
+
+    fixture.next_tx!(TAKER, |f| {
+        f.take(250, 100);
+
+        let taken = collect_one<OfferTaken>();
+        let (_, amount, cost) = taken.offer_taken_fields();
+        sold = sold + amount;
+        paid = paid + cost;
+    });
+
+    fixture.next_tx!(MAKER, |f| {
+        received = received + f.take_maker_payout();
+        let refund = f.cancel();
+
+        let canceled = collect_one<OfferCanceled>();
+        let (_, emitted_refund) = canceled.offer_canceled_fields();
+        let (_, _, _, _, _, offered_amount, _) = f.created.offer_created_fields();
+        assert_eq!(emitted_refund, refund);
+        assert_eq!(refund, offered_amount - sold);
+    });
+
+    assert_eq!(sold, 753);
+    assert_eq!(paid, 1 + 167 + 84);
+    assert_eq!(received, paid);
+
+    fixture.end();
+}
+
+#[test]
 fun costs_round_up_only_on_a_remainder() {
     let mut fixture = start_unit();
 
     // Rate 1/4: exact fills pay the exact cost; a remainder adds one unit.
     fixture.create(1_000, 250, option::none(), true);
-    let (_, change) = fixture.take(4, 100);
+    let (_, change) = fixture.take(0, 4, 100);
     assert_eq!(change, 99);
-    let (_, change) = fixture.take(5, 100);
+    let (_, change) = fixture.take(0, 5, 100);
     assert_eq!(change, 98);
-    assert_eq!(fixture.cancel(), 991);
+    assert_eq!(fixture.cancel(0), 991);
 
     // Rate 1/1_000: no fill is free, so the maker can receive one unit more per fill.
     fixture.create(1_000, 1, option::none(), true);
-    let (_, change) = fixture.take(1, 100);
+    let (_, change) = fixture.take(0, 1, 100);
     assert_eq!(change, 99);
-    let (_, change) = fixture.take(999, 100);
+    let (_, change) = fixture.take(0, 999, 100);
     assert_eq!(change, 99);
-    assert_eq!(fixture.cancel(), 0);
+    assert_eq!(fixture.cancel(0), 0);
 
     // Rate 10/3: 1 unit costs 3.33 → 4, 2 units cost 6.67 → 7.
     fixture.create(3, 10, option::none(), true);
-    let (_, change) = fixture.take(1, 100);
+    let (_, change) = fixture.take(0, 1, 100);
     assert_eq!(change, 96);
-    let (_, change) = fixture.take(2, 100);
+    let (_, change) = fixture.take(0, 2, 100);
     assert_eq!(change, 93);
-    assert_eq!(fixture.cancel(), 0);
+    assert_eq!(fixture.cancel(0), 0);
 
     fixture.end();
 }
@@ -293,30 +305,80 @@ fun costs_round_up_only_on_a_remainder() {
 fun offer_composes_within_one_transaction_before_sharing() {
     let mut fixture = start_unit();
     fixture.create(OFFERED_AMOUNT, WANTED_AMOUNT, option::none(), true);
+    let offer_id = fixture.offer_id(0);
 
-    let (bought, change) = fixture.take(250, 100);
+    let (bought, change) = fixture.take(0, 250, 100);
     assert_eq!(bought, 250);
     assert_eq!(change, 16);
-    assert_eq!(fixture.cancel(), 750);
+    assert_eq!(fixture.cancel(0), 750);
 
     let created = collect_one<OfferCreated>();
-    let (offer_id, _, _, maker, taker, partial_fills, offered_amount, wanted_amount) =
+    let (created_id, _, _, taker, partial_fills, offered_amount, wanted_amount) =
         created.offer_created_fields();
     let taken = collect_one<OfferTaken>();
-    let (taken_id, taker_address, amount, paid) = taken.offer_taken_fields();
+    let (taken_id, amount, paid) = taken.offer_taken_fields();
     let canceled = collect_one<OfferCanceled>();
     let (canceled_id, refund) = canceled.offer_canceled_fields();
 
-    assert_eq!(maker, MAKER);
+    assert_eq!(created_id, offer_id);
     assert!(taker.is_none());
     assert!(partial_fills);
     assert_eq!(offered_amount, OFFERED_AMOUNT);
     assert_eq!(wanted_amount, WANTED_AMOUNT);
     assert_eq!(taken_id, offer_id);
-    assert_eq!(taker_address, MAKER);
     assert_eq!(amount, 250);
     assert_eq!(paid, 84);
     assert_eq!(canceled_id, offer_id);
+    assert_eq!(refund, 750);
+
+    fixture.end();
+}
+
+#[test]
+fun offers_in_one_transaction_emit_events_matched_by_id() {
+    let mut fixture = start_unit();
+    fixture.create(OFFERED_AMOUNT, WANTED_AMOUNT, option::none(), true);
+    fixture.create(500, 100, option::some(MAKER), false);
+    let first_id = fixture.offer_id(0);
+    let second_id = fixture.offer_id(1);
+
+    fixture.take(1, 500, 100);
+    fixture.take(0, 250, 100);
+    assert_eq!(fixture.cancel(1), 0);
+    assert_eq!(fixture.cancel(0), 750);
+
+    let created = event::events_by_type<OfferCreated>();
+    let (id, _, _, taker, partial_fills, offered_amount, wanted_amount) =
+        created[0].offer_created_fields();
+    assert_eq!(id, first_id);
+    assert!(taker.is_none());
+    assert!(partial_fills);
+    assert_eq!(offered_amount, OFFERED_AMOUNT);
+    assert_eq!(wanted_amount, WANTED_AMOUNT);
+    let (id, _, _, taker, partial_fills, offered_amount, wanted_amount) =
+        created[1].offer_created_fields();
+    assert_eq!(id, second_id);
+    assert_eq!(taker, option::some(MAKER));
+    assert!(!partial_fills);
+    assert_eq!(offered_amount, 500);
+    assert_eq!(wanted_amount, 100);
+
+    let taken = event::events_by_type<OfferTaken>();
+    let (id, amount, paid) = taken[0].offer_taken_fields();
+    assert_eq!(id, second_id);
+    assert_eq!(amount, 500);
+    assert_eq!(paid, 100);
+    let (id, amount, paid) = taken[1].offer_taken_fields();
+    assert_eq!(id, first_id);
+    assert_eq!(amount, 250);
+    assert_eq!(paid, 84);
+
+    let canceled = event::events_by_type<OfferCanceled>();
+    let (id, refund) = canceled[0].offer_canceled_fields();
+    assert_eq!(id, second_id);
+    assert_eq!(refund, 0);
+    let (id, refund) = canceled[1].offer_canceled_fields();
+    assert_eq!(id, first_id);
     assert_eq!(refund, 750);
 
     fixture.end();
@@ -328,14 +390,14 @@ fun maximum_width_fills_multiply_without_overflow() {
     let mut fixture = start_unit();
     fixture.create(max, max, option::none(), true);
 
-    let (bought, change) = fixture.take(max - 1, max);
+    let (bought, change) = fixture.take(0, max - 1, max);
     assert_eq!(bought, max - 1);
     assert_eq!(change, 1);
 
-    let (bought, change) = fixture.take(1, 1);
+    let (bought, change) = fixture.take(0, 1, 1);
     assert_eq!(bought, 1);
     assert_eq!(change, 0);
-    assert_eq!(fixture.cancel(), 0);
+    assert_eq!(fixture.cancel(0), 0);
 
     fixture.end();
 }
@@ -420,8 +482,8 @@ fun named_taker_offer_rejects_another_sender_before_amount_checks() {
     abort_code = blast_fun_otc::blast_fun_otc::EZeroAmount,
     location = blast_fun_otc::blast_fun_otc,
 )]
-fun take_rejects_zero_amount() {
-    let mut fixture = start_offer(option::none(), true);
+fun take_rejects_zero_amount_before_the_full_take_rule() {
+    let mut fixture = start_offer(option::none(), false);
 
     fixture.next_tx!(TAKER, |f| {
         f.take(0, WANTED_AMOUNT);
@@ -522,7 +584,7 @@ macro fun offer_next_tx(
 fun start_unit(): UnitFixture {
     UnitFixture {
         scenario: test_scenario::begin(MAKER),
-        offer: option::none(),
+        offers: vector[],
     }
 }
 
@@ -541,10 +603,14 @@ fun unit_create(
         partial_fills,
         self.scenario.ctx(),
     );
-    self.offer.fill(offer);
+    self.offers.push_back(offer);
 }
 
-fun unit_create_with_same_coin(self: &mut UnitFixture, offered_amount: u64, wanted_amount: u64) {
+fun unit_create_with_same_coin(
+    self: &mut UnitFixture,
+    offered_amount: u64,
+    wanted_amount: u64,
+) {
     let offered = coin::mint_for_testing<OFFERED>(offered_amount, self.scenario.ctx());
     let offer = otc::new<OFFERED, OFFERED>(
         offered,
@@ -557,15 +623,24 @@ fun unit_create_with_same_coin(self: &mut UnitFixture, offered_amount: u64, want
     destroy(offer);
 }
 
-fun unit_take(self: &mut UnitFixture, amount: u64, budget: u64): (u64, u64) {
+fun unit_offer_id(self: &UnitFixture, index: u64): ID {
+    object::id(&self.offers[index])
+}
+
+fun unit_take(
+    self: &mut UnitFixture,
+    index: u64,
+    amount: u64,
+    budget: u64,
+): (u64, u64) {
     let mut payment = coin::mint_for_testing<WANTED>(budget, self.scenario.ctx());
-    let bought = self.offer.borrow_mut().take(amount, &mut payment, self.scenario.ctx());
+    let bought = self.offers[index].take(amount, &mut payment, self.scenario.ctx());
 
     (bought.burn_for_testing(), payment.burn_for_testing())
 }
 
-fun unit_cancel(self: &mut UnitFixture): u64 {
-    self.offer.extract().cancel(self.scenario.ctx()).burn_for_testing()
+fun unit_cancel(self: &mut UnitFixture, index: u64): u64 {
+    self.offers.remove(index).cancel(self.scenario.ctx()).burn_for_testing()
 }
 
 fun unit_end(self: UnitFixture) {
@@ -603,7 +678,7 @@ fun collect_one<T: copy + drop>(): T {
     events.pop_back()
 }
 
-fun offer_fixture_assert_created(
+fun offer_assert_created(
     self: &OfferFixture,
     expected_taker: Option<address>,
     expected_partial_fills: bool,
@@ -612,7 +687,6 @@ fun offer_fixture_assert_created(
         offer_id,
         offered_type,
         wanted_type,
-        maker,
         taker,
         partial_fills,
         offered_amount,
@@ -622,29 +696,28 @@ fun offer_fixture_assert_created(
     assert_eq!(offer_id, self.offer_id);
     assert_eq!(offered_type, std::type_name::with_original_ids<OFFERED>());
     assert_eq!(wanted_type, std::type_name::with_original_ids<WANTED>());
-    assert_eq!(maker, MAKER);
     assert_eq!(taker, expected_taker);
     assert_eq!(partial_fills, expected_partial_fills);
     assert_eq!(offered_amount, OFFERED_AMOUNT);
     assert_eq!(wanted_amount, WANTED_AMOUNT);
 }
 
-fun offer_fixture_take(self: &mut OfferFixture, amount: u64, budget: u64): (u64, u64) {
+fun offer_take(self: &mut OfferFixture, amount: u64, budget: u64): (u64, u64) {
     let mut payment = coin::mint_for_testing<WANTED>(budget, self.scenario.ctx());
     let bought = self.offer.borrow_mut().take(amount, &mut payment, self.scenario.ctx());
 
     (bought.burn_for_testing(), payment.burn_for_testing())
 }
 
-fun offer_fixture_cancel(self: &mut OfferFixture): u64 {
+fun offer_cancel(self: &mut OfferFixture): u64 {
     self.offer.extract().cancel(self.scenario.ctx()).burn_for_testing()
 }
 
-fun offer_fixture_offer_id(self: &OfferFixture): ID {
+fun offer_offer_id(self: &OfferFixture): ID {
     self.offer_id
 }
 
-fun offer_fixture_take_maker_payout(self: &OfferFixture): u64 {
+fun offer_take_maker_payout(self: &OfferFixture): u64 {
     self.scenario.take_from_sender<Coin<WANTED>>().burn_for_testing()
 }
 
@@ -666,19 +739,19 @@ use std::unit_test::{assert_eq, destroy};
 
 use sui::{coin::{Self, Coin}, event, test_scenario::{Self, Scenario}};
 
+use fun offer_assert_created as OfferFixture.assert_created;
+
+use fun offer_cancel as OfferFixture.cancel;
+
 use fun offer_end as OfferFixture.end;
 
 use fun offer_next_tx as OfferFixture.next_tx;
 
-use fun offer_fixture_assert_created as OfferFixture.assert_created;
+use fun offer_offer_id as OfferFixture.offer_id;
 
-use fun offer_fixture_cancel as OfferFixture.cancel;
+use fun offer_take as OfferFixture.take;
 
-use fun offer_fixture_offer_id as OfferFixture.offer_id;
-
-use fun offer_fixture_take as OfferFixture.take;
-
-use fun offer_fixture_take_maker_payout as OfferFixture.take_maker_payout;
+use fun offer_take_maker_payout as OfferFixture.take_maker_payout;
 
 use fun unit_cancel as UnitFixture.cancel;
 
@@ -687,5 +760,7 @@ use fun unit_create as UnitFixture.create;
 use fun unit_create_with_same_coin as UnitFixture.create_with_same_coin;
 
 use fun unit_end as UnitFixture.end;
+
+use fun unit_offer_id as UnitFixture.offer_id;
 
 use fun unit_take as UnitFixture.take;

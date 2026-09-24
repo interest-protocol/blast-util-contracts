@@ -11,12 +11,12 @@ const MAX_CHECKPOINTS: u64 = 256;
 // === Public Types ===
 
 /// One exact cumulative unlock boundary.
-public struct Checkpoint has copy, drop, store {
+public struct Checkpoint has drop, store {
     timestamp_ms: u64,
     cumulative_amount: u64,
 }
 
-/// Linear builder for one bounded immutable checkpoint schedule.
+/// Ability-free builder that must be consumed by a constructor in the creating PTB.
 public struct Schedule {
     checkpoints: vector<Checkpoint>,
 }
@@ -41,7 +41,6 @@ public struct CancelCap<phantom CoinType> has key, store {
 public struct VestingCreated has copy, drop {
     vesting_id: ID,
     coin_type: TypeName,
-    funder: address,
     beneficiary: address,
     refund_recipient: Option<address>,
     cancel_cap_id: Option<ID>,
@@ -53,18 +52,15 @@ public struct VestingCreated has copy, drop {
 public struct VestingClaimed has copy, drop {
     vesting_id: ID,
     coin_type: TypeName,
-    caller: address,
     beneficiary: address,
     amount: u64,
     released_total: u64,
-    remaining_balance: u64,
 }
 
 /// Emitted after fair cancellation settles vested and unvested custody.
 public struct VestingCanceled has copy, drop {
     vesting_id: ID,
     coin_type: TypeName,
-    caller: address,
     beneficiary: address,
     refund_recipient: address,
     beneficiary_amount: u64,
@@ -72,12 +68,10 @@ public struct VestingCanceled has copy, drop {
     released_total: u64,
 }
 
-/// Emitted after a drained, ended irrevocable schedule is deleted.
+/// Emitted after a drained irrevocable schedule is deleted.
 public struct VestingClosed has copy, drop {
     vesting_id: ID,
     coin_type: TypeName,
-    caller: address,
-    released_total: u64,
 }
 
 // === Public Functions ===
@@ -129,16 +123,7 @@ public fun new_irrevocable<CoinType>(
         ctx,
     );
 
-    event::emit(VestingCreated {
-        vesting_id: vesting.id.to_inner(),
-        coin_type: type_name::with_original_ids<CoinType>(),
-        funder: ctx.sender(),
-        beneficiary,
-        refund_recipient: option::none(),
-        cancel_cap_id: option::none(),
-        total_amount: vesting.balance.value(),
-        checkpoint_count: vesting.checkpoints.length(),
-    });
+    vesting.emit_created(option::none());
 
     vesting
 }
@@ -160,22 +145,12 @@ public fun new_cancelable<CoinType>(
         clock,
         ctx,
     );
-    let vesting_id = vesting.id.to_inner();
     let cancel_cap = CancelCap {
         id: object::new(ctx),
-        vesting_id,
+        vesting_id: vesting.id.to_inner(),
     };
 
-    event::emit(VestingCreated {
-        vesting_id,
-        coin_type: type_name::with_original_ids<CoinType>(),
-        funder: ctx.sender(),
-        beneficiary,
-        refund_recipient: option::some(refund_recipient),
-        cancel_cap_id: option::some(cancel_cap.id.to_inner()),
-        total_amount: vesting.balance.value(),
-        checkpoint_count: vesting.checkpoints.length(),
-    });
+    vesting.emit_created(option::some(cancel_cap.id.to_inner()));
 
     (vesting, cancel_cap)
 }
@@ -191,21 +166,18 @@ public fun claim<CoinType>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    let amount = self.releasable_at(clock.timestamp_ms());
+    let amount = self.vested_at(clock.timestamp_ms()) - self.released;
     assert!(amount > 0, ENothingClaimable);
 
-    let beneficiary = self.beneficiary;
     self.released = self.released + amount;
-    transfer::public_transfer(self.balance.split(amount).into_coin(ctx), beneficiary);
+    transfer::public_transfer(self.balance.split(amount).into_coin(ctx), self.beneficiary);
 
     event::emit(VestingClaimed {
         vesting_id: self.id.to_inner(),
         coin_type: type_name::with_original_ids<CoinType>(),
-        caller: ctx.sender(),
-        beneficiary,
+        beneficiary: self.beneficiary,
         amount,
         released_total: self.released,
-        remaining_balance: self.balance.value(),
     });
 }
 
@@ -216,23 +188,21 @@ public fun cancel<CoinType>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    let vesting_id = self.id.to_inner();
-    assert!(cap.vesting_id == vesting_id, EInvalidCancelCap);
+    assert!(cap.vesting_id == self.id.to_inner(), EInvalidCancelCap);
 
-    let beneficiary = self.beneficiary;
-    // A matching cap can only be minted by `new_cancelable`, which stores `Some`.
-    let refund_recipient = *self.cancel_refund_recipient.borrow();
     let vested_total = self.vested_at(clock.timestamp_ms());
     let beneficiary_amount = vested_total - self.released;
-    let refund_amount = self.balance.value() - beneficiary_amount;
     let Vesting {
         id,
         mut balance,
-        beneficiary: _,
-        cancel_refund_recipient: _,
+        beneficiary,
+        cancel_refund_recipient,
         checkpoints: _,
         released: _,
     } = self;
+    // A matching cap can only be minted by `new_cancelable`, which stores `Some`.
+    let refund_recipient = cancel_refund_recipient.destroy_some();
+    let refund_amount = balance.value() - beneficiary_amount;
     let CancelCap { id: cap_id, vesting_id: _ } = cap;
 
     if (beneficiary_amount > 0) {
@@ -242,51 +212,43 @@ public fun cancel<CoinType>(
         transfer::public_transfer(balance.split(refund_amount).into_coin(ctx), refund_recipient);
     };
 
-    balance.destroy_zero();
-    id.delete();
-    cap_id.delete();
-
     event::emit(VestingCanceled {
-        vesting_id,
+        vesting_id: id.to_inner(),
         coin_type: type_name::with_original_ids<CoinType>(),
-        caller: ctx.sender(),
         beneficiary,
         refund_recipient,
         beneficiary_amount,
         refund_amount,
         released_total: vested_total,
     });
+
+    balance.destroy_zero();
+    id.delete();
+    cap_id.delete();
 }
 
-/// Deletes a drained irrevocable schedule after its final checkpoint.
-public fun close_irrevocable<CoinType>(
-    self: Vesting<CoinType>,
-    clock: &Clock,
-    ctx: &mut TxContext,
-) {
+/// Deletes a drained irrevocable schedule. Only the final checkpoint releases the last unit, so
+/// a drained schedule has always ended.
+public fun close_irrevocable<CoinType>(self: Vesting<CoinType>) {
     assert!(self.cancel_refund_recipient.is_none(), ECancelCapRequired);
-    assert!(clock.timestamp_ms() >= self.end_ms(), EScheduleNotEnded);
     assert!(self.balance.value() == 0, EScheduleNotEmpty);
 
-    let vesting_id = self.id.to_inner();
     let Vesting {
         id,
         balance,
         beneficiary: _,
         cancel_refund_recipient: _,
         checkpoints: _,
-        released,
+        released: _,
     } = self;
+
+    event::emit(VestingClosed {
+        vesting_id: id.to_inner(),
+        coin_type: type_name::with_original_ids<CoinType>(),
+    });
 
     balance.destroy_zero();
     id.delete();
-
-    event::emit(VestingClosed {
-        vesting_id,
-        coin_type: type_name::with_original_ids<CoinType>(),
-        caller: ctx.sender(),
-        released_total: released,
-    });
 }
 
 // === Private Functions ===
@@ -300,14 +262,19 @@ fun new<CoinType>(
     ctx: &mut TxContext,
 ): Vesting<CoinType> {
     assert!(beneficiary != @0x0, EInvalidBeneficiary);
-    if (cancel_refund_recipient.is_some()) {
-        assert!(*cancel_refund_recipient.borrow() != @0x0, EInvalidRefundRecipient);
-    };
+    assert!(
+        cancel_refund_recipient.is_none_or!(|recipient| *recipient != @0x0),
+        EInvalidRefundRecipient,
+    );
     let total_amount = funds.value();
     assert!(total_amount > 0, EZeroAllocation);
-
-    schedule.validate(total_amount, clock.timestamp_ms());
     let Schedule { checkpoints } = schedule;
+    assert!(!checkpoints.is_empty(), ENoCheckpoints);
+    assert!(checkpoints[0].timestamp_ms >= clock.timestamp_ms(), ECheckpointInPast);
+    assert!(
+        checkpoints[checkpoints.length() - 1].cumulative_amount == total_amount,
+        EFinalAmountMismatch,
+    );
 
     Vesting {
         id: object::new(ctx),
@@ -319,19 +286,16 @@ fun new<CoinType>(
     }
 }
 
-fun validate(
-    self: &Schedule,
-    total_amount: u64,
-    current_ms: u64,
-) {
-    let length = self.checkpoints.length();
-    assert!(length > 0, ENoCheckpoints);
-
-    assert!(self.checkpoints[0].timestamp_ms >= current_ms, ECheckpointInPast);
-    assert!(
-        self.checkpoints[length - 1].cumulative_amount == total_amount,
-        EFinalAmountMismatch,
-    );
+fun emit_created<CoinType>(self: &Vesting<CoinType>, cancel_cap_id: Option<ID>) {
+    event::emit(VestingCreated {
+        vesting_id: self.id.to_inner(),
+        coin_type: type_name::with_original_ids<CoinType>(),
+        beneficiary: self.beneficiary,
+        refund_recipient: self.cancel_refund_recipient,
+        cancel_cap_id,
+        total_amount: self.balance.value(),
+        checkpoint_count: self.checkpoints.length(),
+    });
 }
 
 fun vested_at<CoinType>(self: &Vesting<CoinType>, timestamp_ms: u64): u64 {
@@ -352,55 +316,15 @@ fun vested_at<CoinType>(self: &Vesting<CoinType>, timestamp_ms: u64): u64 {
     }
 }
 
-fun releasable_at<CoinType>(self: &Vesting<CoinType>, timestamp_ms: u64): u64 {
-    self.vested_at(timestamp_ms) - self.released
-}
-
-fun end_ms<CoinType>(self: &Vesting<CoinType>): u64 {
-    self.checkpoints[self.checkpoints.length() - 1].timestamp_ms
-}
-
 // === Test-Only Functions ===
-
-#[test_only]
-public fun timestamp_ms(self: &Checkpoint): u64 {
-    self.timestamp_ms
-}
-
-#[test_only]
-public fun cumulative_amount(self: &Checkpoint): u64 {
-    self.cumulative_amount
-}
-
-#[test_only]
-public fun vested_at_for_testing<CoinType>(
-    self: &Vesting<CoinType>,
-    timestamp_ms: u64,
-): u64 {
-    self.vested_at(timestamp_ms)
-}
-
-#[test_only]
-public fun releasable_at_for_testing<CoinType>(
-    self: &Vesting<CoinType>,
-    timestamp_ms: u64,
-): u64 {
-    self.releasable_at(timestamp_ms)
-}
-
-#[test_only]
-public fun vesting_id<CoinType>(self: &CancelCap<CoinType>): ID {
-    self.vesting_id
-}
 
 #[test_only]
 public fun vesting_created_fields(
     self: &VestingCreated,
-): (ID, TypeName, address, address, Option<address>, Option<ID>, u64, u64) {
+): (ID, TypeName, address, Option<address>, Option<ID>, u64, u64) {
     (
         self.vesting_id,
         self.coin_type,
-        self.funder,
         self.beneficiary,
         self.refund_recipient,
         self.cancel_cap_id,
@@ -410,28 +334,23 @@ public fun vesting_created_fields(
 }
 
 #[test_only]
-public fun vesting_claimed_fields(
-    self: &VestingClaimed,
-): (ID, TypeName, address, address, u64, u64, u64) {
+public fun vesting_claimed_fields(self: &VestingClaimed): (ID, TypeName, address, u64, u64) {
     (
         self.vesting_id,
         self.coin_type,
-        self.caller,
         self.beneficiary,
         self.amount,
         self.released_total,
-        self.remaining_balance,
     )
 }
 
 #[test_only]
 public fun vesting_canceled_fields(
     self: &VestingCanceled,
-): (ID, TypeName, address, address, address, u64, u64, u64) {
+): (ID, TypeName, address, address, u64, u64, u64) {
     (
         self.vesting_id,
         self.coin_type,
-        self.caller,
         self.beneficiary,
         self.refund_recipient,
         self.beneficiary_amount,
@@ -441,13 +360,8 @@ public fun vesting_canceled_fields(
 }
 
 #[test_only]
-public fun vesting_closed_fields(self: &VestingClosed): (ID, TypeName, address, u64) {
-    (
-        self.vesting_id,
-        self.coin_type,
-        self.caller,
-        self.released_total,
-    )
+public fun vesting_closed_fields(self: &VestingClosed): (ID, TypeName) {
+    (self.vesting_id, self.coin_type)
 }
 
 // === Errors ===
@@ -486,12 +400,9 @@ const ENothingClaimable: vector<u8> = b"No vested balance is available to claim.
 const EInvalidCancelCap: vector<u8> = b"Cancellation capability does not match this schedule.";
 
 #[error(code = 11)]
-const EScheduleNotEnded: vector<u8> = b"Vesting schedule has not ended.";
-
-#[error(code = 12)]
 const EScheduleNotEmpty: vector<u8> = b"Vesting schedule still holds funds.";
 
-#[error(code = 13)]
+#[error(code = 12)]
 const ECancelCapRequired: vector<u8> = b"Cancelable schedule requires its cancellation capability.";
 
 // === Imports ===

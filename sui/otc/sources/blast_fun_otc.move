@@ -23,17 +23,15 @@ public struct OfferCreated has copy, drop {
     offer_id: ID,
     offered_type: TypeName,
     wanted_type: TypeName,
-    maker: address,
     taker: Option<address>,
     partial_fills: bool,
     offered_amount: u64,
     wanted_amount: u64,
 }
 
-/// Emitted after a taker buys `amount` of the escrow and pays the maker `paid`.
+/// Emitted after the sender buys `amount` of the escrow and pays the maker `paid`.
 public struct OfferTaken has copy, drop {
     offer_id: ID,
-    taker: address,
     amount: u64,
     paid: u64,
 }
@@ -56,9 +54,7 @@ public fun new<Offered, Wanted>(
     partial_fills: bool,
     ctx: &mut TxContext,
 ): Offer<Offered, Wanted> {
-    if (taker.is_some()) {
-        assert!(*taker.borrow() != @0x0, EInvalidTaker);
-    };
+    assert!(taker.is_none_or!(|taker| *taker != @0x0), EInvalidTaker);
     let offered_amount = offered.value();
     assert!(offered_amount > 0, EZeroOffered);
     assert!(wanted_amount > 0, EZeroWanted);
@@ -80,7 +76,6 @@ public fun new<Offered, Wanted>(
         offer_id: offer.id.to_inner(),
         offered_type,
         wanted_type,
-        maker: offer.maker,
         taker,
         partial_fills,
         offered_amount,
@@ -104,9 +99,7 @@ public fun take<Offered, Wanted>(
     payment: &mut Coin<Wanted>,
     ctx: &mut TxContext,
 ): Coin<Offered> {
-    if (self.taker.is_some()) {
-        assert!(*self.taker.borrow() == ctx.sender(), ENotTaker);
-    };
+    assert!(self.taker.is_none_or!(|taker| *taker == ctx.sender()), ENotTaker);
     assert!(amount > 0, EZeroAmount);
     assert!(amount <= self.balance.value(), EAmountExceedsBalance);
     assert!(self.partial_fills || amount == self.balance.value(), EPartialFillsDisabled);
@@ -118,7 +111,6 @@ public fun take<Offered, Wanted>(
 
     event::emit(OfferTaken {
         offer_id: self.id.to_inner(),
-        taker: ctx.sender(),
         amount,
         paid,
     });
@@ -142,12 +134,10 @@ public fun cancel<Offered, Wanted>(
         offered_amount: _,
         wanted_amount: _,
     } = self;
-    let offer_id = id.to_inner();
-    let refund = balance.value();
+
+    event::emit(OfferCanceled { offer_id: id.to_inner(), refund: balance.value() });
 
     id.delete();
-
-    event::emit(OfferCanceled { offer_id, refund });
 
     balance.into_coin(ctx)
 }
@@ -157,12 +147,11 @@ public fun cancel<Offered, Wanted>(
 #[test_only]
 public fun offer_created_fields(
     self: &OfferCreated,
-): (ID, TypeName, TypeName, address, Option<address>, bool, u64, u64) {
+): (ID, TypeName, TypeName, Option<address>, bool, u64, u64) {
     (
         self.offer_id,
         self.offered_type,
         self.wanted_type,
-        self.maker,
         self.taker,
         self.partial_fills,
         self.offered_amount,
@@ -171,8 +160,8 @@ public fun offer_created_fields(
 }
 
 #[test_only]
-public fun offer_taken_fields(self: &OfferTaken): (ID, address, u64, u64) {
-    (self.offer_id, self.taker, self.amount, self.paid)
+public fun offer_taken_fields(self: &OfferTaken): (ID, u64, u64) {
+    (self.offer_id, self.amount, self.paid)
 }
 
 #[test_only]

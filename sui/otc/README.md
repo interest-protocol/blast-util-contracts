@@ -27,5 +27,20 @@ unit per fill. Payment goes straight to the maker; the bought coins return to
 the taker. The rate, maker, and counterparty never change. Only the maker can
 cancel.
 
-The package has no admin, fees, or expiry, and depends only on the Sui
-framework. Use `scripts/check_coverage.sh` for the package coverage gate.
+Events carry no sender field: the sender of `OfferCreated` is the maker, and
+the sender of `OfferTaken` is the taker.
+
+A coin whose issuer keeps a deny list can block a fill: `take` fails while the
+maker is denied `Wanted`, and a global pause on `Offered` blocks both `take`
+and `cancel` until it lifts.
+
+The package has no fees or expiry and depends only on the Sui framework. Use
+`scripts/check_coverage.sh` for the package coverage gate.
+
+## Publication
+
+Publish and call `sui::package::make_immutable` on the returned `UpgradeCap`
+in the same transaction, then record the digest. Until the cap is consumed,
+its holder could upgrade the module and reach every offer's escrow. Once it is
+consumed, no one can change the code, and only each offer's maker can cancel
+it.
