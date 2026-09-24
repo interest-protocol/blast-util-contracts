@@ -5,35 +5,6 @@
 /// buys all of it.
 module blast_fun_otc::blast_fun_otc;
 
-// === Errors ===
-
-#[error(code = 0)]
-const EInvalidTaker: vector<u8> = b"Taker must not be the zero address.";
-
-#[error(code = 1)]
-const EZeroOffered: vector<u8> = b"Offered amount must be greater than zero.";
-
-#[error(code = 2)]
-const EZeroWanted: vector<u8> = b"Wanted amount must be greater than zero.";
-
-#[error(code = 3)]
-const ENotTaker: vector<u8> = b"Sender is not the taker this offer names.";
-
-#[error(code = 4)]
-const EZeroAmount: vector<u8> = b"Take amount must be greater than zero.";
-
-#[error(code = 5)]
-const EAmountExceedsBalance: vector<u8> = b"Take amount exceeds the offer balance.";
-
-#[error(code = 6)]
-const EPartialFillsDisabled: vector<u8> = b"Offer must be taken in full.";
-
-#[error(code = 7)]
-const ENotMaker: vector<u8> = b"Only the maker may cancel this offer.";
-
-#[error(code = 8)]
-const ESameCoin: vector<u8> = b"Offered and wanted coins must be different types.";
-
 // === Public Types ===
 
 /// Key-only shared escrow for one offer whose rate and counterparty never change.
@@ -208,6 +179,35 @@ public fun offer_taken_fields(self: &OfferTaken): (ID, address, u64, u64) {
 public fun offer_canceled_fields(self: &OfferCanceled): (ID, u64) {
     (self.offer_id, self.refund)
 }
+
+// === Errors ===
+
+#[error(code = 0)]
+const EInvalidTaker: vector<u8> = b"Taker must not be the zero address.";
+
+#[error(code = 1)]
+const EZeroOffered: vector<u8> = b"Offered amount must be greater than zero.";
+
+#[error(code = 2)]
+const EZeroWanted: vector<u8> = b"Wanted amount must be greater than zero.";
+
+#[error(code = 3)]
+const ENotTaker: vector<u8> = b"Sender is not the taker this offer names.";
+
+#[error(code = 4)]
+const EZeroAmount: vector<u8> = b"Take amount must be greater than zero.";
+
+#[error(code = 5)]
+const EAmountExceedsBalance: vector<u8> = b"Take amount exceeds the offer balance.";
+
+#[error(code = 6)]
+const EPartialFillsDisabled: vector<u8> = b"Offer must be taken in full.";
+
+#[error(code = 7)]
+const ENotMaker: vector<u8> = b"Only the maker may cancel this offer.";
+
+#[error(code = 8)]
+const ESameCoin: vector<u8> = b"Offered and wanted coins must be different types.";
 
 // === Imports ===
 

@@ -8,50 +8,6 @@ module blast_fun_vesting::blast_fun_checkpoint_vesting;
 
 const MAX_CHECKPOINTS: u64 = 256;
 
-// === Errors ===
-
-#[error(code = 0)]
-const EInvalidBeneficiary: vector<u8> = b"Beneficiary must not be the zero address.";
-
-#[error(code = 1)]
-const EInvalidRefundRecipient: vector<u8> = b"Refund recipient must not be the zero address.";
-
-#[error(code = 2)]
-const EZeroAllocation: vector<u8> = b"Vesting allocation must be greater than zero.";
-
-#[error(code = 3)]
-const ENoCheckpoints: vector<u8> = b"Vesting requires at least one checkpoint.";
-
-#[error(code = 4)]
-const ETooManyCheckpoints: vector<u8> = b"Vesting supports at most 256 checkpoints.";
-
-#[error(code = 5)]
-const ECheckpointInPast: vector<u8> = b"First checkpoint must not precede the current clock time.";
-
-#[error(code = 6)]
-const ECheckpointTimesNotIncreasing: vector<u8> = b"Checkpoint times must be strictly increasing.";
-
-#[error(code = 7)]
-const ECheckpointAmountsNotIncreasing: vector<u8> = b"Checkpoint amounts must be strictly increasing.";
-
-#[error(code = 8)]
-const EFinalAmountMismatch: vector<u8> = b"Final checkpoint amount must equal the funded allocation.";
-
-#[error(code = 9)]
-const ENothingClaimable: vector<u8> = b"No vested balance is available to claim.";
-
-#[error(code = 10)]
-const EInvalidCancelCap: vector<u8> = b"Cancellation capability does not match this schedule.";
-
-#[error(code = 11)]
-const EScheduleNotEnded: vector<u8> = b"Vesting schedule has not ended.";
-
-#[error(code = 12)]
-const EScheduleNotEmpty: vector<u8> = b"Vesting schedule still holds funds.";
-
-#[error(code = 13)]
-const ECancelCapRequired: vector<u8> = b"Cancelable schedule requires its cancellation capability.";
-
 // === Public Types ===
 
 /// One exact cumulative unlock boundary.
@@ -493,6 +449,50 @@ public fun vesting_closed_fields(self: &VestingClosed): (ID, TypeName, address, 
         self.released_total,
     )
 }
+
+// === Errors ===
+
+#[error(code = 0)]
+const EInvalidBeneficiary: vector<u8> = b"Beneficiary must not be the zero address.";
+
+#[error(code = 1)]
+const EInvalidRefundRecipient: vector<u8> = b"Refund recipient must not be the zero address.";
+
+#[error(code = 2)]
+const EZeroAllocation: vector<u8> = b"Vesting allocation must be greater than zero.";
+
+#[error(code = 3)]
+const ENoCheckpoints: vector<u8> = b"Vesting requires at least one checkpoint.";
+
+#[error(code = 4)]
+const ETooManyCheckpoints: vector<u8> = b"Vesting supports at most 256 checkpoints.";
+
+#[error(code = 5)]
+const ECheckpointInPast: vector<u8> = b"First checkpoint must not precede the current clock time.";
+
+#[error(code = 6)]
+const ECheckpointTimesNotIncreasing: vector<u8> = b"Checkpoint times must be strictly increasing.";
+
+#[error(code = 7)]
+const ECheckpointAmountsNotIncreasing: vector<u8> = b"Checkpoint amounts must be strictly increasing.";
+
+#[error(code = 8)]
+const EFinalAmountMismatch: vector<u8> = b"Final checkpoint amount must equal the funded allocation.";
+
+#[error(code = 9)]
+const ENothingClaimable: vector<u8> = b"No vested balance is available to claim.";
+
+#[error(code = 10)]
+const EInvalidCancelCap: vector<u8> = b"Cancellation capability does not match this schedule.";
+
+#[error(code = 11)]
+const EScheduleNotEnded: vector<u8> = b"Vesting schedule has not ended.";
+
+#[error(code = 12)]
+const EScheduleNotEmpty: vector<u8> = b"Vesting schedule still holds funds.";
+
+#[error(code = 13)]
+const ECancelCapRequired: vector<u8> = b"Cancelable schedule requires its cancellation capability.";
 
 // === Imports ===
 
