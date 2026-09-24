@@ -59,8 +59,11 @@ sui client object 0xa4140133b2a6972824b83899398d63ddcc03ca0c4eea40f0c0e82cf4e4ab
 sui client verify-source sui/otc
 ```
 
+Vesting's `#[error]` abort codes encode source line numbers, so verify it at
+the publish commit. Later cleanups moved lines without changing behaviour.
+
 ```bash
-sui client verify-source sui/vesting
+git checkout e1a7c62 && sui client verify-source sui/vesting
 ```
 
 The [deployment record](deployments/sui/mainnet/2026-09-24-otc-and-vesting.json)

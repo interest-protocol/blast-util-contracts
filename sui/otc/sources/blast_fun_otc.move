@@ -128,11 +128,7 @@ public fun cancel<Offered, Wanted>(
     let Offer {
         id,
         balance,
-        maker: _,
-        taker: _,
-        partial_fills: _,
-        offered_amount: _,
-        wanted_amount: _,
+        ..
     } = self;
 
     event::emit(OfferCanceled { offer_id: id.to_inner(), refund: balance.value() });

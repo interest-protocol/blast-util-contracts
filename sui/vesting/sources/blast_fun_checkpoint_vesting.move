@@ -197,8 +197,7 @@ public fun cancel<CoinType>(
         mut balance,
         beneficiary,
         cancel_refund_recipient,
-        checkpoints: _,
-        released: _,
+        ..
     } = self;
     // A matching cap can only be minted by `new_cancelable`, which stores `Some`.
     let refund_recipient = cancel_refund_recipient.destroy_some();
@@ -236,10 +235,7 @@ public fun close_irrevocable<CoinType>(self: Vesting<CoinType>) {
     let Vesting {
         id,
         balance,
-        beneficiary: _,
-        cancel_refund_recipient: _,
-        checkpoints: _,
-        released: _,
+        ..
     } = self;
 
     event::emit(VestingClosed {
