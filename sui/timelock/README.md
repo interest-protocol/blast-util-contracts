@@ -34,5 +34,6 @@ the field stored in your object.
 
 The package holds no objects and needs no administrator: the module that stores
 a `Timelocked` decides who may schedule it, and the guarantee holds as long as
-that module changes the value only through `schedule`. It depends only on the
+that module changes the value only through `schedule`. A `&mut Timelocked` can
+also replace the whole value, delay included, so never hand one out. It depends only on the
 Sui framework. Use `scripts/check_coverage.sh` for the package coverage gate.

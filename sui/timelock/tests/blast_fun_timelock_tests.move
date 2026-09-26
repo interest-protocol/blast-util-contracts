@@ -24,17 +24,22 @@ fun a_new_value_is_in_force_at_once_with_nothing_scheduled() {
 }
 
 #[test]
-/// One millisecond before the delay ends the old value is in force; at the end the new one is.
+/// One millisecond before the delay ends the old value is in force; from the end on the new one is.
 fun a_scheduled_value_takes_effect_exactly_after_the_delay() {
     let mut clock = start();
     let mut locked = timelock::new(5u64, DELAY_MS);
 
     locked.schedule(9, &clock);
 
-    assert_eq!(vector[locked.scheduled(), locked.scheduled_at_ms()], vector[9, START_MS + DELAY_MS]);
+    assert_eq!(locked.scheduled(), 9);
+    assert_eq!(locked.scheduled_at_ms(), START_MS + DELAY_MS);
     clock.set_for_testing(START_MS + DELAY_MS - 1);
     assert_eq!(locked.value(&clock), 5);
     clock.set_for_testing(START_MS + DELAY_MS);
+    assert_eq!(locked.value(&clock), 9);
+    clock.increment_for_testing(1);
+    assert_eq!(locked.value(&clock), 9);
+    clock.increment_for_testing(10 * DELAY_MS);
     assert_eq!(locked.value(&clock), 9);
 
     end(clock);
@@ -236,26 +241,38 @@ fun a_schedule_whose_end_would_not_fit_in_a_u64_aborts() {
 }
 
 #[test]
-#[expected_failure(abort_code = timelock::EInvalidDelay, location = blast_fun_timelock::blast_fun_timelock)]
+#[expected_failure(
+    abort_code = timelock::EInvalidDelay,
+    location = blast_fun_timelock::blast_fun_timelock,
+)]
 /// The test constructor refuses the delays `new` refuses, so fixtures match production.
 fun the_test_constructor_refuses_a_zero_delay() {
     timelock::new_scheduled_for_testing(5u64, 9, 0, 0);
 }
 
 #[test]
-#[expected_failure(abort_code = timelock::EInvalidDelay, location = blast_fun_timelock::blast_fun_timelock)]
+#[expected_failure(
+    abort_code = timelock::EInvalidDelay,
+    location = blast_fun_timelock::blast_fun_timelock,
+)]
 fun the_test_constructor_refuses_a_delay_above_ten_years() {
     timelock::new_scheduled_for_testing(5u64, 9, 0, timelock::ten_years_for_testing() + 1);
 }
 
 #[test]
-#[expected_failure(abort_code = timelock::EInvalidDelay, location = blast_fun_timelock::blast_fun_timelock)]
+#[expected_failure(
+    abort_code = timelock::EInvalidDelay,
+    location = blast_fun_timelock::blast_fun_timelock,
+)]
 fun a_zero_delay_is_refused() {
     timelock::new(5u64, 0);
 }
 
 #[test]
-#[expected_failure(abort_code = timelock::EInvalidDelay, location = blast_fun_timelock::blast_fun_timelock)]
+#[expected_failure(
+    abort_code = timelock::EInvalidDelay,
+    location = blast_fun_timelock::blast_fun_timelock,
+)]
 fun a_delay_one_above_ten_years_is_refused() {
     timelock::new(5u64, timelock::ten_years_for_testing() + 1);
 }
