@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "skills": {
+    "sui-move-architecture": {
+      "source": "josemvcerqueira/sui-move-engineering-skills",
+      "sourceType": "github",
+      "skillPath": "skills/sui-move-architecture/SKILL.md",
+      "computedHash": "c4707f2ebe04fd63aa6c0c6062133bc17cea905f03ad06ce099d50769fc73fb2"
+    },
+    "sui-move-guide": {
+      "source": "josemvcerqueira/sui-move-engineering-skills",
+      "sourceType": "github",
+      "skillPath": "skills/sui-move-guide/SKILL.md",
+      "computedHash": "5761593433e68e8bfb821dd0e5a5f2fbccf0f0e3f0f4410629d6c9d46acf400a"
+    },
+    "sui-move-patterns": {
+      "source": "josemvcerqueira/sui-move-engineering-skills",
+      "sourceType": "github",
+      "skillPath": "skills/sui-move-patterns/SKILL.md",
+      "computedHash": "ea849986c0df97ebb70897336873eb20c17111c086893c86ff814d8ab5dcafeb"
+    },
+    "sui-move-review": {
+      "source": "josemvcerqueira/sui-move-engineering-skills",
+      "sourceType": "github",
+      "skillPath": "skills/sui-move-review/SKILL.md",
+      "computedHash": "9089b36f33c0886fd2e2b8e31215c4de55d4e019022b2e30d2c4990f8fb7bbab"
+    },
+    "sui-move-security": {
+      "source": "josemvcerqueira/sui-move-engineering-skills",
+      "sourceType": "github",
+      "skillPath": "skills/sui-move-security/SKILL.md",
+      "computedHash": "34d5f1e7e4e8697de07981debfd30565145cf34a2d128daf11efda377562d954"
+    },
+    "sui-move-source-style": {
+      "source": "josemvcerqueira/sui-move-engineering-skills",
+      "sourceType": "github",
+      "skillPath": "skills/sui-move-source-style/SKILL.md",
+      "computedHash": "d6c53300fd9aedf1092e56b9fa4097db2bfa53f94a18521420c2a0a3363b06f3"
+    },
+    "sui-move-testing": {
+      "source": "josemvcerqueira/sui-move-engineering-skills",
+      "sourceType": "github",
+      "skillPath": "skills/sui-move-testing/SKILL.md",
+      "computedHash": "65e3dd0e53df58be7582df609f65a287d0927492bd209d814cdfc383c45369b6"
+    }
+  }
+}
