@@ -5,7 +5,7 @@ them imports the Blast launchpad, and the launchpad imports none of them.
 
 ## Mainnet
 
-The OTC and vesting packages are published on Sui mainnet and are **immutable**: each
+All three packages are published on Sui mainnet and are **immutable**: each
 package's `UpgradeCap` was consumed by `0x2::package::make_immutable`, so no
 one, including the deployer, can upgrade or change them.
 
@@ -13,10 +13,11 @@ one, including the deployer, can upgrade or change them.
 | --- | --- | --- | --- |
 | OTC | `blast_fun_otc` | [`sui/otc/`](sui/otc/) | [`0x40e0c95f73af329e7a6a8eafee9d152a1f3090736d35052842288232f7eb5968`](https://suiscan.xyz/mainnet/object/0x40e0c95f73af329e7a6a8eafee9d152a1f3090736d35052842288232f7eb5968) |
 | Vesting | `blast_fun_vesting` | [`sui/vesting/`](sui/vesting/) | [`0x85fdb7e3d28162b99e0df758069a3d23cff874c400b2160fc0d4618aefd3ec5c`](https://suiscan.xyz/mainnet/object/0x85fdb7e3d28162b99e0df758069a3d23cff874c400b2160fc0d4618aefd3ec5c) |
-| Timelock | `blast_fun_timelock` | [`sui/timelock/`](sui/timelock/) | not published yet; it will be published immutable in one transaction, like OTC |
+| Timelock | `blast_fun_timelock` | [`sui/timelock/`](sui/timelock/) | [`0x7e17a8d6c068ccdfb7e8a0c222da363d9c9dcf9fcda97befa3352a7b54ff2f29`](https://suiscan.xyz/mainnet/object/0x7e17a8d6c068ccdfb7e8a0c222da363d9c9dcf9fcda97befa3352a7b54ff2f29) |
 
 OTC and vesting were built from commit `8600b8f` with Sui CLI `1.77.2` and published by
 `0x52ecee5e58e2f3a7461cc604f4efcc3b68031e4715456d821e3a2719b0593600`.
+Timelock was built from commit `8f29c59` with the same CLI and deployer.
 
 ### Proof of immutability
 
@@ -38,6 +39,12 @@ checkpoints, canceled, and closed. Finally,
 called `0x2::package::make_immutable` on that cap while the package was still at
 version 1, deleting the cap.
 
+**Timelock** was published and frozen in one transaction,
+[`Hya1RkiSHLcmZ2BRbtNw4LB4dyaKCxqg7uvQU49VozAr`](https://suiscan.xyz/mainnet/tx/Hya1RkiSHLcmZ2BRbtNw4LB4dyaKCxqg7uvQU49VozAr).
+Its programmable transaction has exactly two commands: `Publish`, then
+`0x2::package::make_immutable(Result(0))`. The only created object is the
+immutable package, so no `UpgradeCap` survived publication.
+
 Check it yourself:
 
 ```bash
@@ -53,6 +60,11 @@ sui client tx-block 3wvDSfNADFGP9SvxWPuiBGvdYMvzf7BabUBpGWKD1FWu
 ```bash
 # Vesting: the UpgradeCap no longer exists ("not found")
 sui client object 0xa4140133b2a6972824b83899398d63ddcc03ca0c4eea40f0c0e82cf4e4ab28e3
+```
+
+```bash
+# Timelock: the command list is Publish, then make_immutable(Result(0))
+sui client tx-block Hya1RkiSHLcmZ2BRbtNw4LB4dyaKCxqg7uvQU49VozAr
 ```
 
 The on-chain bytecode matches this repository's source at the publish commit.
@@ -71,19 +83,31 @@ sui client verify-source sui/otc
 sui client verify-source sui/vesting
 ```
 
-The [deployment record](deployments/sui/mainnet/2026-09-24-otc-and-vesting.json)
-lists every transaction, gas cost, and piece of vesting gate evidence.
+Timelock's on-chain bytecode was verified against source commit `8f29c59`
+after adding its publication metadata:
+
+```bash
+sui client verify-source sui/timelock
+```
+
+The deployment records for [OTC and vesting](deployments/sui/mainnet/2026-09-24-otc-and-vesting.json)
+and [timelock](deployments/sui/mainnet/2026-09-26-timelock.json) list every
+transaction, gas cost, and release-gate result.
 
 ## Use as a dependency
 
-Add the packages you need to your `Move.toml`, pinned to commit `e1a7c62`, which
-adds the `Published.toml` files, or any later commit:
+Add OTC or vesting to your `Move.toml`, pinned to commit `e1a7c62`, which adds
+their `Published.toml` files, or any later commit:
 
 ```toml
 [dependencies]
 blast_fun_otc = { git = "https://github.com/interest-protocol/blast-util-contracts.git", subdir = "sui/otc", rev = "e1a7c62d4d13eba1f6cd68b0ea05f159c4c87af9" }
 blast_fun_vesting = { git = "https://github.com/interest-protocol/blast-util-contracts.git", subdir = "sui/vesting", rev = "e1a7c62d4d13eba1f6cd68b0ea05f159c4c87af9" }
 ```
+
+Pin timelock to the release-evidence commit that adds
+[`sui/timelock/Published.toml`](sui/timelock/Published.toml) once that commit is
+available from the repository remote.
 
 Each package's `Published.toml` records its mainnet ID, so a mainnet build or
 publish (`sui move build -e mainnet`, `sui client publish`) links your package
@@ -94,6 +118,7 @@ modules by their named addresses:
 use blast_fun_otc::blast_fun_otc::{Self, Offer};
 use blast_fun_vesting::blast_fun_linear_vesting;
 use blast_fun_vesting::blast_fun_checkpoint_vesting;
+use blast_fun_timelock::blast_fun_timelock::{Self, Timelocked};
 ```
 
 Programmable transactions and SDKs call the package IDs directly, for example
