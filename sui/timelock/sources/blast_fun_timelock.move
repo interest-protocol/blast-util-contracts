@@ -13,13 +13,20 @@ module blast_fun_timelock::blast_fun_timelock;
 
 // === Constants ===
 
-/// The longest delay a timelock may have: ten years, so a scheduled time never overflows.
-const MAX_DELAY_MS: u64 = 10 * 365 * 24 * 60 * 60 * 1_000;
+/// Ten years in milliseconds: the longest delay a timelock may have. It keeps
+/// `now + delay_ms` from overflowing, so `schedule` never aborts unless the Clock
+/// is within ten years of `u64::MAX` (about the year 584,000,000), and it rejects
+/// gross unit mistakes such as a delay given in microseconds.
+const TEN_YEARS: u64 = 10 * 365 * 24 * 60 * 60 * 1_000;
 
 // === Public Types ===
 
 /// A value that is `before` until `at_ms` and `after` from then on. Every
 /// schedule sets `at_ms` to `delay_ms` after it.
+///
+/// `copy` and `drop` let a `Timelocked` be overwritten and carried in events. A
+/// copy is an independent value, so always call `schedule` on the stored field
+/// itself.
 public struct Timelocked<T: copy + drop + store> has copy, drop, store {
     before: T,
     after: T,
@@ -31,7 +38,7 @@ public struct Timelocked<T: copy + drop + store> has copy, drop, store {
 
 /// A timelocked `value`, in force at once; every later change waits `delay_ms`.
 public fun new<T: copy + drop + store>(value: T, delay_ms: u64): Timelocked<T> {
-    assert!(delay_ms > 0 && delay_ms <= MAX_DELAY_MS, EInvalidDelay);
+    assert!(delay_ms > 0 && delay_ms <= TEN_YEARS, EInvalidDelay);
 
     Timelocked { before: value, after: value, at_ms: 0, delay_ms }
 }
@@ -58,6 +65,9 @@ public fun scheduled<T: copy + drop + store>(self: &Timelocked<T>): T {
 }
 
 /// When the latest scheduled value takes effect; zero if nothing was ever scheduled.
+/// Scheduling the value in force is itself a schedule, so this can report a
+/// future time while the value will not change: a change is pending exactly
+/// when `scheduled_at_ms() > now` and `scheduled() != value(clock)`.
 public fun scheduled_at_ms<T: copy + drop + store>(self: &Timelocked<T>): u64 {
     self.at_ms
 }
@@ -70,8 +80,8 @@ public fun delay_ms<T: copy + drop + store>(self: &Timelocked<T>): u64 {
 // === Test-Only Functions ===
 
 #[test_only]
-public fun max_delay_ms_for_testing(): u64 {
-    MAX_DELAY_MS
+public fun ten_years_for_testing(): u64 {
+    TEN_YEARS
 }
 
 #[test_only]
@@ -82,6 +92,8 @@ public fun new_scheduled_for_testing<T: copy + drop + store>(
     at_ms: u64,
     delay_ms: u64,
 ): Timelocked<T> {
+    assert!(delay_ms > 0 && delay_ms <= TEN_YEARS, EInvalidDelay);
+
     Timelocked { before, after, at_ms, delay_ms }
 }
 
