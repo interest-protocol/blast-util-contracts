@@ -96,18 +96,15 @@ transaction, gas cost, and release-gate result.
 
 ## Use as a dependency
 
-Add OTC or vesting to your `Move.toml`, pinned to commit `e1a7c62`, which adds
-their `Published.toml` files, or any later commit:
+Add the packages you need to your `Move.toml`, pinned to a commit that contains
+their `Published.toml` files:
 
 ```toml
 [dependencies]
 blast_fun_otc = { git = "https://github.com/interest-protocol/blast-util-contracts.git", subdir = "sui/otc", rev = "e1a7c62d4d13eba1f6cd68b0ea05f159c4c87af9" }
 blast_fun_vesting = { git = "https://github.com/interest-protocol/blast-util-contracts.git", subdir = "sui/vesting", rev = "e1a7c62d4d13eba1f6cd68b0ea05f159c4c87af9" }
+blast_fun_timelock = { git = "https://github.com/interest-protocol/blast-util-contracts.git", subdir = "sui/timelock", rev = "b4cab7f3b222b3a1e5dd592f54ca0e3ccb3d862a" }
 ```
-
-Pin timelock to the release-evidence commit that adds
-[`sui/timelock/Published.toml`](sui/timelock/Published.toml) once that commit is
-available from the repository remote.
 
 Each package's `Published.toml` records its mainnet ID, so a mainnet build or
 publish (`sui move build -e mainnet`, `sui client publish`) links your package
