@@ -13,11 +13,11 @@ one, including the deployer, can upgrade or change them.
 | --- | --- | --- | --- |
 | OTC | `blast_fun_otc` | [`sui/otc/`](sui/otc/) | [`0x40e0c95f73af329e7a6a8eafee9d152a1f3090736d35052842288232f7eb5968`](https://suiscan.xyz/mainnet/object/0x40e0c95f73af329e7a6a8eafee9d152a1f3090736d35052842288232f7eb5968) |
 | Vesting | `blast_fun_vesting` | [`sui/vesting/`](sui/vesting/) | [`0x85fdb7e3d28162b99e0df758069a3d23cff874c400b2160fc0d4618aefd3ec5c`](https://suiscan.xyz/mainnet/object/0x85fdb7e3d28162b99e0df758069a3d23cff874c400b2160fc0d4618aefd3ec5c) |
-| Timelock | `blast_fun_timelock` | [`sui/timelock/`](sui/timelock/) | [`0x7e17a8d6c068ccdfb7e8a0c222da363d9c9dcf9fcda97befa3352a7b54ff2f29`](https://suiscan.xyz/mainnet/object/0x7e17a8d6c068ccdfb7e8a0c222da363d9c9dcf9fcda97befa3352a7b54ff2f29) |
+| Timelock | `blast_fun_timelock` | [`sui/timelock/`](sui/timelock/) | [`0x1749b76a3ae065dedfe847578b07826fa83d1e18ff485d9e4f9647f3698e104d`](https://suiscan.xyz/mainnet/object/0x1749b76a3ae065dedfe847578b07826fa83d1e18ff485d9e4f9647f3698e104d) |
 
 OTC and vesting were built from commit `8600b8f` with Sui CLI `1.77.2` and published by
 `0x52ecee5e58e2f3a7461cc604f4efcc3b68031e4715456d821e3a2719b0593600`.
-Timelock was built from commit `8f29c59` with the same CLI and deployer.
+Timelock was built from commit `96e9d25` with the same CLI and deployer.
 
 ### Proof of immutability
 
@@ -40,10 +40,16 @@ called `0x2::package::make_immutable` on that cap while the package was still at
 version 1, deleting the cap.
 
 **Timelock** was published and frozen in one transaction,
-[`Hya1RkiSHLcmZ2BRbtNw4LB4dyaKCxqg7uvQU49VozAr`](https://suiscan.xyz/mainnet/tx/Hya1RkiSHLcmZ2BRbtNw4LB4dyaKCxqg7uvQU49VozAr).
+[`FQhZPuNDEzBENZhvRuCW5oYme9KAeYKZtnaGBF2yR7oZ`](https://suiscan.xyz/mainnet/tx/FQhZPuNDEzBENZhvRuCW5oYme9KAeYKZtnaGBF2yR7oZ).
 Its programmable transaction has exactly two commands: `Publish`, then
 `0x2::package::make_immutable(Result(0))`. The only created object is the
 immutable package, so no `UpgradeCap` survived publication.
+
+An earlier immutable package,
+[`0x7e17a8d6c068ccdfb7e8a0c222da363d9c9dcf9fcda97befa3352a7b54ff2f29`](https://suiscan.xyz/mainnet/object/0x7e17a8d6c068ccdfb7e8a0c222da363d9c9dcf9fcda97befa3352a7b54ff2f29),
+is superseded because it imposed a ten-year maximum delay. It remains on-chain
+and immutable, but new integrations must use the package listed above, which
+accepts every positive `u64` delay.
 
 Check it yourself:
 
@@ -64,7 +70,7 @@ sui client object 0xa4140133b2a6972824b83899398d63ddcc03ca0c4eea40f0c0e82cf4e4ab
 
 ```bash
 # Timelock: the command list is Publish, then make_immutable(Result(0))
-sui client tx-block Hya1RkiSHLcmZ2BRbtNw4LB4dyaKCxqg7uvQU49VozAr
+sui client tx-block FQhZPuNDEzBENZhvRuCW5oYme9KAeYKZtnaGBF2yR7oZ
 ```
 
 The on-chain bytecode matches this repository's source at the publish commit.
@@ -83,16 +89,17 @@ sui client verify-source sui/otc
 sui client verify-source sui/vesting
 ```
 
-Timelock's on-chain bytecode was verified against source commit `8f29c59`
+Timelock's on-chain bytecode was verified against source commit `96e9d25`
 after adding its publication metadata:
 
 ```bash
 sui client verify-source sui/timelock
 ```
 
-The deployment records for [OTC and vesting](deployments/sui/mainnet/2026-09-24-otc-and-vesting.json)
-and [timelock](deployments/sui/mainnet/2026-09-26-timelock.json) list every
-transaction, gas cost, and release-gate result.
+The deployment records for [OTC and vesting](deployments/sui/mainnet/2026-09-24-otc-and-vesting.json),
+the [superseded timelock](deployments/sui/mainnet/2026-09-26-timelock.json), and
+the [canonical timelock](deployments/sui/mainnet/2026-09-26-timelock-unbounded-delay.json)
+list every transaction, gas cost, and release-gate result.
 
 ## Use as a dependency
 

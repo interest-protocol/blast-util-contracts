@@ -39,3 +39,17 @@ a `Timelocked` decides who may schedule it, and the guarantee holds as long as
 that module changes the value only through `schedule`. A `&mut Timelocked` can
 also replace the whole value, delay included, so never hand one out. It depends only on the
 Sui framework. Use `scripts/check_coverage.sh` for the package coverage gate.
+
+## Mainnet
+
+Published at
+`0x1749b76a3ae065dedfe847578b07826fa83d1e18ff485d9e4f9647f3698e104d` and made
+immutable in the same transaction,
+[`FQhZPuNDEzBENZhvRuCW5oYme9KAeYKZtnaGBF2yR7oZ`](https://suiscan.xyz/mainnet/tx/FQhZPuNDEzBENZhvRuCW5oYme9KAeYKZtnaGBF2yR7oZ):
+`Publish`, then `0x2::package::make_immutable(Result(0))`. No `UpgradeCap`
+exists, so no one can change the code. See the
+[deployment record](../../deployments/sui/mainnet/2026-09-26-timelock-unbounded-delay.json).
+
+The earlier package at
+`0x7e17a8d6c068ccdfb7e8a0c222da363d9c9dcf9fcda97befa3352a7b54ff2f29`
+is superseded because it limited delays to ten years.
