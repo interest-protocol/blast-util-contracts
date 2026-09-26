@@ -107,6 +107,86 @@ fun the_shortest_and_longest_delays_are_accepted() {
 }
 
 #[test]
+/// Scheduling the pending value again is a new schedule: it restarts the delay.
+fun rescheduling_the_pending_value_restarts_the_delay() {
+    let (ctx, mut clock) = start();
+    let mut locked = timelock::new(5u64, DELAY_MS);
+    locked.schedule(9, &clock);
+    clock.increment_for_testing(DELAY_MS - 1);
+
+    locked.schedule(9, &clock);
+
+    clock.increment_for_testing(1);
+    assert_eq!(locked.value(&clock), 5);
+    clock.set_for_testing(START_MS + DELAY_MS - 1 + DELAY_MS);
+    assert_eq!(locked.value(&clock), 9);
+
+    end(ctx, clock);
+}
+
+#[test]
+/// Several schedules in one instant keep the value in force and leave the last one pending.
+fun several_schedules_in_one_instant_leave_the_last_pending() {
+    let (ctx, mut clock) = start();
+    let mut locked = timelock::new(5u64, DELAY_MS);
+
+    locked.schedule(9, &clock);
+    locked.schedule(7, &clock);
+
+    assert_eq!(vector[locked.value(&clock), locked.scheduled()], vector[5, 7]);
+    clock.increment_for_testing(DELAY_MS);
+    assert_eq!(locked.value(&clock), 7);
+
+    end(ctx, clock);
+}
+
+#[test]
+/// Any value with copy, drop and store works, for example a vector.
+fun a_timelocked_vector_switches_whole() {
+    let (ctx, mut clock) = start();
+    let mut locked = timelock::new(vector[1u8, 2], DELAY_MS);
+
+    locked.schedule(vector[3u8], &clock);
+
+    assert_eq!(locked.value(&clock), vector[1u8, 2]);
+    clock.increment_for_testing(DELAY_MS);
+    assert_eq!(locked.value(&clock), vector[3u8]);
+
+    end(ctx, clock);
+}
+
+#[test]
+/// A copy is a separate value: scheduling it leaves the original untouched.
+fun a_copy_schedules_independently_of_the_original() {
+    let (ctx, mut clock) = start();
+    let original = timelock::new(5u64, DELAY_MS);
+    let mut duplicate = original;
+
+    duplicate.schedule(9, &clock);
+
+    clock.increment_for_testing(DELAY_MS);
+    assert_eq!(vector[original.value(&clock), duplicate.value(&clock)], vector[5, 9]);
+
+    end(ctx, clock);
+}
+
+#[test]
+/// The longest delay from the latest instant that still fits in a u64 schedules without overflow.
+fun the_longest_delay_schedules_at_the_latest_instant_that_fits() {
+    let (ctx, mut clock) = start();
+    let max_delay = timelock::max_delay_ms_for_testing();
+    let mut locked = timelock::new(5u64, max_delay);
+    clock.set_for_testing(std::u64::max_value!() - max_delay);
+
+    locked.schedule(9, &clock);
+
+    assert_eq!(locked.scheduled_at_ms(), std::u64::max_value!());
+    assert_eq!(locked.value(&clock), 5);
+
+    end(ctx, clock);
+}
+
+#[test]
 /// The test constructor builds a value mid-change, for dependents' own tests.
 fun a_value_can_be_built_mid_change_for_tests() {
     let (ctx, mut clock) = start();
