@@ -12,14 +12,6 @@
 /// delay included, so the storing module never hands one out.
 module blast_fun_timelock::blast_fun_timelock;
 
-// === Constants ===
-
-/// Ten years in milliseconds: the longest delay a timelock may have. It keeps
-/// `now + delay_ms` from overflowing, so `schedule` never aborts unless the Clock
-/// is within ten years of `u64::MAX` (about the year 584,000,000). It also refuses
-/// the largest unit mistakes, such as a week given in microseconds.
-const TEN_YEARS: u64 = 10 * 365 * 24 * 60 * 60 * 1_000;
-
 // === Public Types ===
 
 /// A value that is `before` until `at_ms` and `after` from then on. Every
@@ -38,9 +30,9 @@ public struct Timelocked<T: copy + drop + store> has copy, drop, store {
 // === Public Functions ===
 
 /// A timelocked `value`, in force at once; every later change waits `delay_ms`.
-/// Aborts unless `delay_ms` is from one millisecond to `TEN_YEARS`.
+/// Aborts unless `delay_ms` is positive.
 public fun new<T: copy + drop + store>(value: T, delay_ms: u64): Timelocked<T> {
-    assert!(delay_ms > 0 && delay_ms <= TEN_YEARS, EInvalidDelay);
+    assert!(delay_ms > 0, EInvalidDelay);
 
     Timelocked { before: value, after: value, at_ms: 0, delay_ms }
 }
@@ -82,11 +74,6 @@ public fun delay_ms<T: copy + drop + store>(self: &Timelocked<T>): u64 {
 // === Test-Only Functions ===
 
 #[test_only]
-public fun ten_years_for_testing(): u64 {
-    TEN_YEARS
-}
-
-#[test_only]
 /// A value that is `before` until `at_ms` and `after` from then on, for dependents' own tests.
 public fun new_scheduled_for_testing<T: copy + drop + store>(
     before: T,
@@ -94,7 +81,7 @@ public fun new_scheduled_for_testing<T: copy + drop + store>(
     at_ms: u64,
     delay_ms: u64,
 ): Timelocked<T> {
-    assert!(delay_ms > 0 && delay_ms <= TEN_YEARS, EInvalidDelay);
+    assert!(delay_ms > 0, EInvalidDelay);
 
     Timelocked { before, after, at_ms, delay_ms }
 }
@@ -102,7 +89,7 @@ public fun new_scheduled_for_testing<T: copy + drop + store>(
 // === Errors ===
 
 #[error(code = 0)]
-const EInvalidDelay: vector<u8> = b"A timelock's delay must be positive and at most ten years.";
+const EInvalidDelay: vector<u8> = b"A timelock's delay must be positive.";
 
 // === Imports ===
 

@@ -7,6 +7,7 @@ module blast_fun_timelock::blast_fun_timelock_tests;
 // === Constants ===
 
 const DELAY_MS: u64 = 7 * 24 * 60 * 60 * 1_000;
+const ELEVEN_YEARS_MS: u64 = 11 * 365 * 24 * 60 * 60 * 1_000;
 const START_MS: u64 = 1_000;
 
 // === Tests ===
@@ -98,17 +99,31 @@ fun a_schedule_after_the_switch_starts_from_the_new_value() {
 }
 
 #[test]
-fun the_shortest_and_longest_delays_are_accepted() {
+fun the_shortest_and_largest_delays_are_accepted() {
     let mut clock = start();
     let mut shortest = timelock::new(@0xA, 1);
-    let longest = timelock::new(@0xA, timelock::ten_years_for_testing());
+    let largest = timelock::new(@0xA, std::u64::max_value!());
 
     shortest.schedule(@0xB, &clock);
 
     assert_eq!(shortest.value(&clock), @0xA);
     clock.increment_for_testing(1);
     assert_eq!(shortest.value(&clock), @0xB);
-    assert_eq!(longest.delay_ms(), timelock::ten_years_for_testing());
+    assert_eq!(largest.delay_ms(), std::u64::max_value!());
+
+    end(clock);
+}
+
+#[test]
+/// A generic timelock does not impose a product-policy ceiling on its delay.
+fun a_delay_above_ten_years_is_accepted() {
+    let clock = start();
+    let mut locked = timelock::new(5u64, ELEVEN_YEARS_MS);
+
+    locked.schedule(9, &clock);
+
+    assert_eq!(locked.delay_ms(), ELEVEN_YEARS_MS);
+    assert_eq!(locked.scheduled_at_ms(), START_MS + ELEVEN_YEARS_MS);
 
     end(clock);
 }
@@ -178,12 +193,11 @@ fun a_copy_schedules_independently_of_the_original() {
 }
 
 #[test]
-/// The longest delay from the latest instant that still fits in a u64 schedules without overflow.
-fun the_longest_delay_schedules_at_the_latest_instant_that_fits() {
+/// The largest delay that fits from the current instant schedules without overflow.
+fun the_largest_delay_that_fits_schedules_at_u64_max() {
     let mut clock = start();
-    let max_delay = timelock::ten_years_for_testing();
+    let max_delay = std::u64::max_value!() - START_MS;
     let mut locked = timelock::new(5u64, max_delay);
-    clock.set_for_testing(std::u64::max_value!() - max_delay);
 
     locked.schedule(9, &clock);
 
@@ -230,10 +244,9 @@ fun a_schedule_at_clock_zero_takes_effect_at_the_delay() {
 #[expected_failure(arithmetic_error, location = blast_fun_timelock::blast_fun_timelock)]
 /// The only way `schedule` aborts: a Clock within the delay of `u64::MAX`.
 fun a_schedule_whose_end_would_not_fit_in_a_u64_aborts() {
-    let mut clock = start();
-    let max_delay = timelock::ten_years_for_testing();
-    let mut locked = timelock::new(5u64, max_delay);
-    clock.set_for_testing(std::u64::max_value!() - max_delay + 1);
+    let clock = start();
+    let overflowing_delay = std::u64::max_value!() - START_MS + 1;
+    let mut locked = timelock::new(5u64, overflowing_delay);
 
     locked.schedule(9, &clock);
 
@@ -255,26 +268,8 @@ fun the_test_constructor_refuses_a_zero_delay() {
     abort_code = timelock::EInvalidDelay,
     location = blast_fun_timelock::blast_fun_timelock,
 )]
-fun the_test_constructor_refuses_a_delay_above_ten_years() {
-    timelock::new_scheduled_for_testing(5u64, 9, 0, timelock::ten_years_for_testing() + 1);
-}
-
-#[test]
-#[expected_failure(
-    abort_code = timelock::EInvalidDelay,
-    location = blast_fun_timelock::blast_fun_timelock,
-)]
 fun a_zero_delay_is_refused() {
     timelock::new(5u64, 0);
-}
-
-#[test]
-#[expected_failure(
-    abort_code = timelock::EInvalidDelay,
-    location = blast_fun_timelock::blast_fun_timelock,
-)]
-fun a_delay_one_above_ten_years_is_refused() {
-    timelock::new(5u64, timelock::ten_years_for_testing() + 1);
 }
 
 // === Test Helpers ===
