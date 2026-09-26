@@ -5,7 +5,7 @@ them imports the Blast launchpad, and the launchpad imports none of them.
 
 ## Mainnet
 
-Both packages are published on Sui mainnet and are **immutable**: each
+The OTC and vesting packages are published on Sui mainnet and are **immutable**: each
 package's `UpgradeCap` was consumed by `0x2::package::make_immutable`, so no
 one, including the deployer, can upgrade or change them.
 
@@ -13,8 +13,9 @@ one, including the deployer, can upgrade or change them.
 | --- | --- | --- | --- |
 | OTC | `blast_fun_otc` | [`sui/otc/`](sui/otc/) | [`0x40e0c95f73af329e7a6a8eafee9d152a1f3090736d35052842288232f7eb5968`](https://suiscan.xyz/mainnet/object/0x40e0c95f73af329e7a6a8eafee9d152a1f3090736d35052842288232f7eb5968) |
 | Vesting | `blast_fun_vesting` | [`sui/vesting/`](sui/vesting/) | [`0x85fdb7e3d28162b99e0df758069a3d23cff874c400b2160fc0d4618aefd3ec5c`](https://suiscan.xyz/mainnet/object/0x85fdb7e3d28162b99e0df758069a3d23cff874c400b2160fc0d4618aefd3ec5c) |
+| Timelock | `blast_fun_timelock` | [`sui/timelock/`](sui/timelock/) | not published yet; it will be published immutable in one transaction, like OTC |
 
-Both were built from commit `8600b8f` with Sui CLI `1.77.2` and published by
+OTC and vesting were built from commit `8600b8f` with Sui CLI `1.77.2` and published by
 `0x52ecee5e58e2f3a7461cc604f4efcc3b68031e4715456d821e3a2719b0593600`.
 
 ### Proof of immutability
@@ -126,6 +127,14 @@ sui move test --path sui/otc
 
 ```bash
 bash sui/otc/scripts/check_coverage.sh
+```
+
+```bash
+sui move test --path sui/timelock
+```
+
+```bash
+bash sui/timelock/scripts/check_coverage.sh
 ```
 
 Design records live in [`docs/decisions/`](docs/decisions/). Their numbers
