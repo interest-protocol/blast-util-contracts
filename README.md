@@ -110,7 +110,7 @@ their `Published.toml` files:
 [dependencies]
 blast_fun_otc = { git = "https://github.com/interest-protocol/blast-util-contracts.git", subdir = "sui/otc", rev = "e1a7c62d4d13eba1f6cd68b0ea05f159c4c87af9" }
 blast_fun_vesting = { git = "https://github.com/interest-protocol/blast-util-contracts.git", subdir = "sui/vesting", rev = "e1a7c62d4d13eba1f6cd68b0ea05f159c4c87af9" }
-blast_fun_timelock = { git = "https://github.com/interest-protocol/blast-util-contracts.git", subdir = "sui/timelock", rev = "b4cab7f3b222b3a1e5dd592f54ca0e3ccb3d862a" }
+blast_fun_timelock = { git = "https://github.com/interest-protocol/blast-util-contracts.git", subdir = "sui/timelock", rev = "c6c428b3b3205fbc65a515eb5e59ad1f2953cdc7" }
 ```
 
 Each package's `Published.toml` records its mainnet ID, so a mainnet build or
