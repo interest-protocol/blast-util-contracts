@@ -8,16 +8,9 @@
 /// A module stores a `Timelocked` in its own object and decides who may call
 /// `schedule` on it; everyone reads the value in force with `value`. The
 /// guarantee holds as long as the storing module changes the value only
-/// through `schedule`.
+/// through `schedule`. A `&mut Timelocked` can also replace the whole value,
+/// delay included, so the storing module never hands one out.
 module blast_fun_timelock::blast_fun_timelock;
-
-// === Constants ===
-
-/// Ten years in milliseconds: the longest delay a timelock may have. It keeps
-/// `now + delay_ms` from overflowing, so `schedule` never aborts unless the Clock
-/// is within ten years of `u64::MAX` (about the year 584,000,000), and it rejects
-/// gross unit mistakes such as a delay given in microseconds.
-const TEN_YEARS: u64 = 10 * 365 * 24 * 60 * 60 * 1_000;
 
 // === Public Types ===
 
@@ -37,8 +30,9 @@ public struct Timelocked<T: copy + drop + store> has copy, drop, store {
 // === Public Functions ===
 
 /// A timelocked `value`, in force at once; every later change waits `delay_ms`.
+/// Aborts unless `delay_ms` is positive.
 public fun new<T: copy + drop + store>(value: T, delay_ms: u64): Timelocked<T> {
-    assert!(delay_ms > 0 && delay_ms <= TEN_YEARS, EInvalidDelay);
+    assert!(delay_ms > 0, EInvalidDelay);
 
     Timelocked { before: value, after: value, at_ms: 0, delay_ms }
 }
@@ -47,11 +41,11 @@ public fun new<T: copy + drop + store>(value: T, delay_ms: u64): Timelocked<T> {
 /// stays in force until then; a new schedule replaces a pending one and
 /// restarts the delay, so scheduling the value in force cancels a pending change.
 public fun schedule<T: copy + drop + store>(self: &mut Timelocked<T>, value: T, clock: &Clock) {
-    let now_ms = clock.timestamp_ms();
+    let at_ms = clock.timestamp_ms() + self.delay_ms;
 
     self.before = self.value(clock);
     self.after = value;
-    self.at_ms = now_ms + self.delay_ms;
+    self.at_ms = at_ms;
 }
 
 /// The value in force at `clock`.
@@ -80,11 +74,6 @@ public fun delay_ms<T: copy + drop + store>(self: &Timelocked<T>): u64 {
 // === Test-Only Functions ===
 
 #[test_only]
-public fun ten_years_for_testing(): u64 {
-    TEN_YEARS
-}
-
-#[test_only]
 /// A value that is `before` until `at_ms` and `after` from then on, for dependents' own tests.
 public fun new_scheduled_for_testing<T: copy + drop + store>(
     before: T,
@@ -92,7 +81,7 @@ public fun new_scheduled_for_testing<T: copy + drop + store>(
     at_ms: u64,
     delay_ms: u64,
 ): Timelocked<T> {
-    assert!(delay_ms > 0 && delay_ms <= TEN_YEARS, EInvalidDelay);
+    assert!(delay_ms > 0, EInvalidDelay);
 
     Timelocked { before, after, at_ms, delay_ms }
 }
@@ -100,7 +89,7 @@ public fun new_scheduled_for_testing<T: copy + drop + store>(
 // === Errors ===
 
 #[error(code = 0)]
-const EInvalidDelay: vector<u8> = b"A timelock's delay must be positive and at most ten years.";
+const EInvalidDelay: vector<u8> = b"A timelock's delay must be positive.";
 
 // === Imports ===
 
