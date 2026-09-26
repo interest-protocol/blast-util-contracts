@@ -244,6 +244,12 @@ fun the_test_constructor_refuses_a_zero_delay() {
 
 #[test]
 #[expected_failure(abort_code = timelock::EInvalidDelay, location = blast_fun_timelock::blast_fun_timelock)]
+fun the_test_constructor_refuses_a_delay_above_ten_years() {
+    timelock::new_scheduled_for_testing(5u64, 9, 0, timelock::ten_years_for_testing() + 1);
+}
+
+#[test]
+#[expected_failure(abort_code = timelock::EInvalidDelay, location = blast_fun_timelock::blast_fun_timelock)]
 fun a_zero_delay_is_refused() {
     timelock::new(5u64, 0);
 }
