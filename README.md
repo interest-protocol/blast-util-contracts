@@ -3,6 +3,10 @@
 Standalone Sui Move packages that Blast composes with in transactions. None of
 them imports the Blast launchpad, and the launchpad imports none of them.
 
+[`sui/merkle/`](sui/merkle/) (`blast_fun_merkle`), the Merkle proof check the
+presale and migrators packages share, is not yet published; the table below
+lists the published packages.
+
 ## Mainnet
 
 All three packages are published on Sui mainnet and are **immutable**: each
@@ -164,6 +168,14 @@ sui move test --path sui/timelock
 
 ```bash
 bash sui/timelock/scripts/check_coverage.sh
+```
+
+```bash
+sui move test --path sui/merkle
+```
+
+```bash
+bash sui/merkle/scripts/check_coverage.sh
 ```
 
 Design records live in [`docs/decisions/`](docs/decisions/). Their numbers
