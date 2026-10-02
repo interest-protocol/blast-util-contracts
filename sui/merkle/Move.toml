@@ -1,8 +1,0 @@
-[package]
-name = "blast_fun_merkle"
-edition = "2024"
-license = "MIT"
-authors = ["Jose Cerqueira (jose@interestprotocol.com)"]
-
-[addresses]
-blast_fun_merkle = "0x0"
